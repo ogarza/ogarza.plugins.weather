@@ -18,7 +18,9 @@ Item {
   readonly property string pluginId: Model.pluginId
   readonly property string home: Quickshell.env("HOME")
   readonly property string hyprStateRoot: (Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/" + pluginId
-  readonly property string hyprShaderPath: hyprStateRoot + "/current.frag"
+  readonly property string hyprShaderPathA: hyprStateRoot + "/current.a.frag"
+  readonly property string hyprShaderPathB: hyprStateRoot + "/current.b.frag"
+  readonly property string hyprShaderPath: root.hyprFileSlot === 1 ? hyprShaderPathB : hyprShaderPathA
   property bool active: false
   property string mode: "none"
   property string weatherPreset: ""
@@ -55,6 +57,7 @@ Item {
   property bool hyprApplied: false
   property int hyprGeneration: 0
   property int hyprAppliedGeneration: 0
+  property int hyprFileSlot: 0
 
   readonly property real hyprPixelRatio: {
     var screens = Quickshell.screens
@@ -81,26 +84,21 @@ Item {
   readonly property bool overlayVisible: root.overlayWanted
     || (overlayFade.running && (Model.isVisualPreset(root.overlayFromPreset) || Model.isVisualPreset(root.overlayToPreset)))
 
-  readonly property string hyprVisual: {
-    var to = root.overlayToPreset
-    var from = root.overlayFromPreset
-    if (root.overlayMix < 0.999 && from && from !== to) {
-      var fromKind = Model.screenShaderKind(
-        from, root.params, root.customShaderA, root.customShaderB, root.customShaderC, root.outdoorTempC)
-      var toKind = Model.screenShaderKind(
-        to, root.params, root.customShaderA, root.customShaderB, root.customShaderC, root.outdoorTempC)
-      if (fromKind.indexOf("rain") !== -1 && toKind.indexOf("rain") === -1)
-        return from
-    }
-    return to
-  }
-
   readonly property string hyprKind: Model.screenShaderKind(
-    root.hyprVisual, root.params, root.customShaderA, root.customShaderB, root.customShaderC, root.outdoorTempC)
+    root.overlayToPreset, root.params, root.customShaderA, root.customShaderB, root.customShaderC, root.outdoorTempC)
 
-  readonly property bool needsScreenShader: root.persistLoaded && root.hyprEnabled && root.overlayVisible && root.hyprKind !== ""
+  readonly property bool needsScreenShader: root.persistLoaded && root.hyprEnabled
 
-  readonly property bool hyprRainLive: root.needsScreenShader && root.hyprKind.indexOf("rain") !== -1
+  property real hyprFadeAt: -1
+  property real hyprTimeOffset: 0
+  property real hyprClockWall: 0
+  property string hyprAppliedKind: ""
+  property var hyprLastInput: ({})
+  property var hyprPendingInput: ({})
+  property bool hyprNeedRebind: false
+  readonly property real hyprFadeSec: (overlayFade.running || root.overlayMix < 0.999)
+    ? Math.max(0.05, root.overlayFadeDurationMs / 1000)
+    : Model.hyprRainFadeSec
 
   readonly property bool hyprTick: root.needsScreenShader || root.hyprApplied
 
@@ -183,11 +181,11 @@ Item {
     overlayFade.stop()
     root.overlayMix = 0
     root.overlayFromPreset = from
-    root.overlayToPreset = next
     root.applyOverlayFadeDuration()
     overlayFade.from = 0
     overlayFade.to = 1
     overlayFade.start()
+    root.overlayToPreset = next
   }
 
   function syncOverlayLayers() {
@@ -476,6 +474,7 @@ Item {
   function resetParams() {
     root.params = Model.mergeParams(null)
     persistSettings()
+    root.scheduleHyprSync()
   }
 
   function setParam(preset, key, value, persist) {
@@ -484,13 +483,19 @@ Item {
     var clamped = Model.clampParam(key, value, mode)
     var current = Model.paramValue(root.params, mode, key, Model.isCheckParam(key) ? 0 : 1)
     if (current === clamped) {
-      if (persist !== false) persistSettings()
+      if (persist !== false) {
+        persistSettings()
+        root.scheduleHyprSync()
+      }
       return
     }
     var next = Model.mergeParams(root.params)
     next[mode][key] = clamped
     root.params = next
-    if (persist !== false) persistSettings()
+    if (persist !== false) {
+      persistSettings()
+      root.scheduleHyprSync()
+    }
   }
 
   function nudgeParam(preset, key, dir, step) {
@@ -671,8 +676,8 @@ Item {
   }
 
   function hyprInput() {
-    return Model.hyprShaderInput(
-      root.hyprVisual,
+    var input = Model.hyprShaderInput(
+      root.overlayToPreset,
       root.params,
       root.quality,
       root.customShaderA,
@@ -681,6 +686,88 @@ Item {
       root.hyprPixelRatio,
       root.outdoorTempC
     )
+    return input
+  }
+
+  function copyHyprInput(src) {
+    var o = {}
+    if (!src) return o
+    var keys = Object.keys(src)
+    for (var i = 0; i < keys.length; i++)
+      o[keys[i]] = src[keys[i]]
+    return o
+  }
+
+  function hyprHasRain(kind) {
+    return String(kind || "").indexOf("rain") !== -1
+  }
+
+  function hyprTrackInput() {
+    if (root.hyprGeneration !== root.hyprAppliedGeneration)
+      return root.hyprPendingInput || {}
+    return root.hyprLastInput || {}
+  }
+
+  function hyprFadeU() {
+    var last = root.hyprTrackInput()
+    var d = Number(last.fadeSec) || 0
+    if (!(d > 0.001) || !(root.hyprFadeAt >= 0)) return 1
+    var x = Math.max(0, Math.min(1, (Date.now() / 1000 - root.hyprFadeAt) / d))
+    return x * x * (3 - 2 * x)
+  }
+
+  function hyprMixNow(from, to) {
+    var a = Number(from) || 0
+    var b = Number(to) || 0
+    return a + (b - a) * root.hyprFadeU()
+  }
+
+  function hyprRainNow() {
+    var last = root.hyprTrackInput()
+    return root.hyprMixNow(last.rainFrom, last.rainTo)
+  }
+
+  function hyprHazeNow() {
+    var last = root.hyprTrackInput()
+    var from = last.hazeFrom != null ? last.hazeFrom : 0
+    var to = last.hazeTo != null ? last.hazeTo : last.haze
+    return root.hyprMixNow(from, to)
+  }
+
+  function hyprClockNow() {
+    if (!root.hyprApplied || !(root.hyprClockWall > 0))
+      return root.hyprTimeOffset
+    return root.hyprTimeOffset + (Date.now() / 1000 - root.hyprClockWall)
+  }
+
+  function hyprLookKey(input) {
+    input = input || {}
+    return [input.density, input.speed, input.scale, input.glow, input.darken, input.strength,
+      input.refract, input.quality, input.stormRain ? 1 : 0, input.azimuth,
+      input.fireHaze ? 1 : 0, input.pixelRatio].join("|")
+  }
+
+  function writeHyprShader(input) {
+    var src = HyprShader.build(input)
+    if (!src) return false
+    var copy = root.copyHyprInput(input)
+    root.hyprPendingInput = copy
+    root.hyprGeneration += 1
+    root.hyprFileSlot = root.hyprFileSlot === 1 ? 0 : 1
+    if (Number(input.fadeSec) > 0.001)
+      root.hyprFadeAt = Date.now() / 1000
+    else
+      root.hyprFadeAt = -1
+    if (root.hyprFileSlot === 1)
+      hyprShaderFileB.setText(src)
+    else
+      hyprShaderFileA.setText(src)
+    hyprApplyFallback.restart()
+    return true
+  }
+
+  function scheduleHyprNow() {
+    hyprNowTimer.restart()
   }
 
   function scheduleHyprSync() {
@@ -689,33 +776,102 @@ Item {
 
   function renderHypr() {
     if (!root.persistLoaded) return
-    if (!root.needsScreenShader) {
-      if (root.hyprApplied) root.clearHyprShader()
+
+    if (!root.hyprEnabled) {
+      if (!root.hyprApplied) return
+      var rainNowOff = root.hyprRainNow()
+      var hazeNowOff = root.hyprHazeNow()
+      if (rainNowOff < 0.004 && hazeNowOff < 0.004) {
+        hyprClearTimer.stop()
+        root.clearHyprShader()
+        return
+      }
+      var lastOff = root.hyprTrackInput()
+      if (Math.abs(Number(lastOff.rainTo) || 0) < 0.002 && Math.abs(Number(lastOff.hazeTo) || 0) < 0.002) {
+        var left = Math.max(0, (Number(lastOff.fadeSec) || 0) * (1 - root.hyprFadeU()))
+        hyprClearTimer.interval = Math.round(left * 1000) + 80
+        hyprClearTimer.restart()
+        return
+      }
+      var dying = root.copyHyprInput(lastOff)
+      dying.rainFrom = rainNowOff
+      dying.hazeFrom = hazeNowOff
+      dying.rainTo = 0
+      dying.hazeTo = 0
+      dying.fadeSec = Model.hyprRainFadeSec
+      dying.timeOffset = root.hyprClockNow()
+      if (!root.writeHyprShader(dying)) {
+        root.clearHyprShader()
+        return
+      }
+      hyprClearTimer.interval = Math.round(dying.fadeSec * 1000) + 80
+      hyprClearTimer.restart()
       return
     }
-    var src = HyprShader.build(root.hyprInput())
-    if (!src) {
-      if (root.hyprApplied) root.clearHyprShader()
-      return
+
+    hyprClearTimer.stop()
+    var want = root.hyprInput()
+    var wantRain = root.hyprHasRain(want.kind) ? 1 : 0
+    var wantHaze = Number(want.haze) || 0
+    var last = root.hyprTrackInput()
+    var rainNow = root.hyprApplied ? root.hyprRainNow() : 0
+    var hazeNow = root.hyprApplied ? root.hyprHazeNow() : 0
+    var targetingSame = root.hyprApplied
+      && Math.abs((Number(last.rainTo) || 0) - wantRain) < 0.002
+      && Math.abs((Number(last.hazeTo != null ? last.hazeTo : last.haze) || 0) - wantHaze) < 0.002
+    var lookSame = root.hyprLookKey(want) === root.hyprLookKey(last)
+    var rainGate = Math.abs(rainNow - wantRain) > 0.004
+    var hazeGate = (hazeNow <= 0.001) !== (wantHaze <= 0.001)
+    if (root.hyprApplied && targetingSame && !root.hyprNeedRebind) {
+      if (lookSame) return
+      if (!rainGate && !hazeGate && wantRain < 0.002 && wantHaze < 0.002) return
     }
-    root.hyprGeneration += 1
-    hyprShaderFile.setText(src)
-    hyprApplyFallback.restart()
+    var input = root.copyHyprInput(want)
+    var dyingRain = rainNow > 0.01 || Number(last.rainFrom) > 0.01 || Number(last.rainTo) > 0.01
+    if (wantRain < 0.5 && dyingRain) {
+      input.stormRain = !!last.stormRain
+      input.density = last.density
+      input.speed = last.speed
+      input.scale = last.scale
+      input.glow = last.glow
+      input.darken = last.darken
+      input.strength = Number(last.strength) > 0.001 ? last.strength : 1
+      input.refract = last.refract
+      input.azimuth = last.azimuth
+    }
+    input.rainFrom = rainNow
+    input.rainTo = wantRain
+    input.hazeFrom = hazeNow
+    input.hazeTo = wantHaze
+    input.fadeSec = (rainGate || hazeGate) ? root.hyprFadeSec : 0
+    input.timeOffset = root.hyprApplied ? root.hyprClockNow() : 0
+    root.hyprNeedRebind = false
+    root.writeHyprShader(input)
   }
 
   function applyHyprRendered() {
     if (root.hyprAppliedGeneration === root.hyprGeneration) return
-    if (!root.needsScreenShader) return
     root.hyprAppliedGeneration = root.hyprGeneration
     hyprApplyFallback.stop()
     root.applyHypr(0, root.hyprShaderPath)
     root.hyprApplied = true
+    var input = root.hyprPendingInput || {}
+    root.hyprLastInput = root.copyHyprInput(input)
+    root.hyprAppliedKind = String(input.kind || "")
+    root.hyprTimeOffset = Number(input.timeOffset) || 0
+    root.hyprClockWall = Date.now() / 1000
   }
 
   function clearHyprShader() {
     hyprApplyFallback.stop()
+    hyprClearTimer.stop()
     root.applyHypr(1, "")
     root.hyprApplied = false
+    root.hyprAppliedKind = ""
+    root.hyprFadeAt = -1
+    root.hyprTimeOffset = 0
+    root.hyprClockWall = 0
+    root.hyprLastInput = ({})
     restoreDamageTimer.restart()
   }
 
@@ -736,10 +892,9 @@ Item {
   onEffectivePresetChanged: root.syncOverlayLayers()
   onModeChanged: root.syncOverlayLayers()
   onOverlayWantedChanged: root.syncOverlayLayers()
-  onNeedsScreenShaderChanged: root.scheduleHyprSync()
-  onHyprKindChanged: root.scheduleHyprSync()
-  onOverlayToPresetChanged: root.scheduleHyprSync()
-  onParamsChanged: root.scheduleHyprSync()
+  onNeedsScreenShaderChanged: root.scheduleHyprNow()
+  onHyprKindChanged: root.scheduleHyprNow()
+  onOverlayToPresetChanged: root.scheduleHyprNow()
   onQualityChanged: root.scheduleHyprSync()
   onOutdoorTempCChanged: root.scheduleHyprSync()
   onNeedsOutdoorTempChanged: if (root.needsOutdoorTemp) root.refreshWeather()
@@ -774,10 +929,12 @@ Item {
 
     readonly property string preset: Model.shaderForVisualSlot(visual, slot, root.customShaderA, root.customShaderB, root.customShaderC, root.params)
     readonly property string shaderFile: Model.shaderFileForPreset(preset)
+    readonly property bool skipDrops: root.persistLoaded &&
+      Model.overlaySkipsRainDrops(root.hyprEnabled, preset, root.params)
 
     anchors.fill: parent
     blending: true
-    visible: fade > 0.001 && shaderFile !== "" && !(preset === "rain" && root.hyprRainLive)
+    visible: fade > 0.001 && shaderFile !== "" && !(preset === "rain" && skipDrops)
     opacity: Math.max(0, Math.min(1, fade))
     fragmentShader: shaderFile !== "" ? Qt.resolvedUrl("shaders/" + shaderFile) : ""
     property real time: clock.elapsedTime
@@ -794,7 +951,7 @@ Item {
     }
     property real strength: Model.slotStrength(root.params, visual, slot, root.customShaderA, root.customShaderB, root.customShaderC)
     property real density: {
-      if (preset === "stormy" && root.hyprRainLive) return 0
+      if (preset === "stormy" && skipDrops) return 0
       return Model.paramValue(root.params, preset || "rain", "density", 1)
     }
     property real speed: Model.paramValue(root.params, preset || "rain", "speed", 1)
@@ -803,7 +960,9 @@ Item {
     property real sheen: {
       if (preset === "rainbow")
         return Model.paramValue(root.params, "rainbow", "nightVisible", 0)
-      return Model.paramValue(root.params, preset === "stormy" ? "stormy" : "rain", "sheen", 0.6)
+      if (preset === "stormy")
+        return Model.paramValue(root.params, "stormy", "sheen", 0.6)
+      return Model.paramValue(root.params, "rain", "darken", 1)
     }
     property real lightning: Model.paramValue(root.params, preset || "stormy", "lightning", 1)
     property real frequency: Model.paramValue(root.params, preset || "stormy", "frequency", 1)
@@ -937,12 +1096,28 @@ Item {
   }
 
   FileView {
-    id: hyprShaderFile
-    path: root.hyprShaderPath
+    id: hyprShaderFileA
+    path: root.hyprShaderPathA
     watchChanges: false
     atomicWrites: true
     printErrors: false
-    onSaved: root.applyHyprRendered()
+    onSaved: if (root.hyprFileSlot === 0) root.applyHyprRendered()
+  }
+
+  FileView {
+    id: hyprShaderFileB
+    path: root.hyprShaderPathB
+    watchChanges: false
+    atomicWrites: true
+    printErrors: false
+    onSaved: if (root.hyprFileSlot === 1) root.applyHyprRendered()
+  }
+
+  Timer {
+    id: hyprNowTimer
+    interval: 1
+    repeat: false
+    onTriggered: root.renderHypr()
   }
 
   Timer {
@@ -950,6 +1125,16 @@ Item {
     interval: 120
     repeat: false
     onTriggered: root.renderHypr()
+  }
+
+  Timer {
+    id: hyprClearTimer
+    interval: 680
+    repeat: false
+    onTriggered: {
+      if (!root.hyprEnabled && root.hyprApplied)
+        root.clearHyprShader()
+    }
   }
 
   Timer {
@@ -964,7 +1149,7 @@ Item {
     interval: 120
     repeat: false
     onTriggered: {
-      if (root.needsScreenShader) return
+      if (root.needsScreenShader || root.hyprApplied) return
       root.applyHypr(root.hyprBaseDamage >= 0 ? root.hyprBaseDamage : 2, "")
     }
   }
@@ -972,8 +1157,10 @@ Item {
   Connections {
     target: Hyprland
     function onRawEvent(event) {
-      if (String(event && event.name ? event.name : "") === "configreloaded")
+      if (String(event && event.name ? event.name : "") === "configreloaded") {
+        root.hyprNeedRebind = true
         root.scheduleHyprSync()
+      }
     }
   }
 

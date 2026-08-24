@@ -173,7 +173,7 @@ vec3 StaticRaindrops(vec2 uv, float t, float uvScale) {
     theta *= rng.z;
     float distanceScale = 0.2 / (1.0 - 0.8 * cos(theta - 3.141593 * 0.5 - 1.6));
     float yDistance = abs(tempUV.y - randomPoint.y);
-    float sizeMul = max(min(scale, 1.0), 0.05);
+    float sizeMul = max(min(scale, 2.0), 0.05);
     float dropSize = 1.65 * (0.2 + distanceScale) * distanceMaxRange * mix(1.5, 0.5, rng.x) * sizeMul;
 
     vec2 tempXY = vec2(xy.x, xy.y) * (4.0 / sizeMul);
@@ -228,7 +228,7 @@ vec4 RollingRaindrops(vec2 uv, float t, float uvScale) {
     float theta = 3.141592653 - acos(clamp(dot(dirN, vec2(0.0, 1.0)), -1.0, 1.0));
     theta *= rng.z;
     float distanceScale = 0.2 / (1.0 - 0.8 * cos(theta - 3.141593 * 0.5 - 1.6));
-    float sizeMul = max(min(scale, 1.0), 0.05);
+    float sizeMul = max(min(scale, 2.0), 0.05);
     float dropSize = 1.65 * (0.2 + distanceScale) * 1.45 * mix(1.0, 0.25, rng.x) * sizeMul;
 
     vec2 tempXY = vec2(xy.x, xy.y) * (4.0 / sizeMul);

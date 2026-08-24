@@ -163,7 +163,7 @@ vec3 StaticRaindrops(vec2 uv, float t, float uvScale) {
     theta *= rng.z;
     float distanceScale = 0.2 / (1.0 - 0.8 * cos(theta - 3.141593 * 0.5 - 1.6));
     float yDistance = abs(tempUV.y - randomPoint.y);
-    float sizeMul = max(min(scale, 1.0), 0.05);
+    float sizeMul = max(min(scale, 2.0), 0.05);
     float dropSize = 1.65 * (0.2 + distanceScale) * distanceMaxRange * mix(1.5, 0.5, rng.x) * sizeMul;
 
     vec2 tempXY = vec2(xy.x, xy.y) * (4.0 / sizeMul);
@@ -219,7 +219,7 @@ vec4 RollingRaindrops(vec2 uv, float t, float uvScale) {
     float theta = 3.141592653 - acos(clamp(dot(dirN, vec2(0.0, 1.0)), -1.0, 1.0));
     theta *= rng.z;
     float distanceScale = 0.2 / (1.0 - 0.8 * cos(theta - 3.141593 * 0.5 - 1.6));
-    float sizeMul = max(min(scale, 1.0), 0.05);
+    float sizeMul = max(min(scale, 2.0), 0.05);
     float dropSize = 1.65 * (0.2 + distanceScale) * 1.45 * mix(1.0, 0.25, rng.x) * sizeMul;
 
     vec2 tempXY = vec2(xy.x, xy.y) * (4.0 / sizeMul);
@@ -312,15 +312,16 @@ void main() {
     float trailFilm = smoothstep(0.02, 0.45, trail) * (1.0 - smoothstep(0.15, 0.55, h));
 
     // Premultiplied overlay: low rgb + alpha darkens (lens), high rgb glints.
-    float sheen = clamp(glow, 0.0, 2.0);
-    float darken = body * mix(0.12, 0.04, ndotl) + trailFilm * 0.04;
-    float brighten = (meniscus * 0.22 + fresnel * 0.08 + spec * 0.70 + specBroad * 0.06) * sheen;
+    float sheenAmt = clamp(glow, 0.0, 2.0);
+    float darkenAmt = clamp(sheen, 0.0, 2.0);
+    float darken = (body * mix(0.12, 0.04, ndotl) + trailFilm * 0.04) * darkenAmt;
+    float brighten = (meniscus * 0.22 + fresnel * 0.08 + spec * 0.70 + specBroad * 0.06) * sheenAmt;
     float alpha = clamp(darken + brighten + h * 0.025, 0.0, 0.50);
 
     vec3 glass = vec3(0.78, 0.91, 1.0);
-    vec3 col = glass * (meniscus * 0.70 + fresnel * 0.22 + spec * 1.35 + specBroad * 0.12) * mix(0.55, 1.15, sheen * 0.5);
+    vec3 col = glass * (meniscus * 0.70 + fresnel * 0.22 + spec * 1.35 + specBroad * 0.12) * mix(0.55, 1.15, sheenAmt * 0.5);
     col *= mix(0.70, 1.0, ndotl * 0.55 + 0.45);
 
     fragColor = vec4(col * alpha, alpha) * cover * qt_Opacity * clamp(strength, 0.0, 1.0);
-    fragColor.a += 0.0 * (sheen + lightning + frequency + azimuth + sunDistance + night + nightTint + nightStrength);
+    fragColor.a += 0.0 * (lightning + frequency + azimuth + sunDistance + night + nightTint + nightStrength);
 }

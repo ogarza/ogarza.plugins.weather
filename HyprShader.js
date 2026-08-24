@@ -28,23 +28,36 @@ function kindHas(kind, token) {
 function sanitize(p) {
   p = p && typeof p === "object" ? p : {}
   var kind = String(p.kind || "")
-  var rain = kindHas(kind, "rain")
-  var haze = kindHas(kind, "haze")
-  var hazeAmt = haze ? clamp(p.haze, 0.0, 1.0) : 0.0
+  var kindRain = kindHas(kind, "rain")
+  var kindHaze = kindHas(kind, "haze")
+  var hazeAmt = kindHaze ? clamp(p.haze, 0.0, 1.0) : 0.0
+  var rainFrom = p.rainFrom != null ? clamp(p.rainFrom, 0.0, 1.0) : (kindRain ? 1.0 : 0.0)
+  var rainTo = p.rainTo != null ? clamp(p.rainTo, 0.0, 1.0) : (kindRain ? 1.0 : 0.0)
+  var hazeFrom = p.hazeFrom != null ? clamp(p.hazeFrom, 0.0, 1.0) : hazeAmt
+  var hazeTo = p.hazeTo != null ? clamp(p.hazeTo, 0.0, 1.0) : hazeAmt
+  var rain = rainFrom > 0.001 || rainTo > 0.001
+  var haze = hazeFrom > 0.001 || hazeTo > 0.001
   return {
     rain: rain,
     stormRain: rain && !!p.stormRain,
     density: clamp(p.density, 0.0, 2.4),
     speed: clamp(p.speed, 0.0, 2.0),
-    scale: clamp(p.scale, 0.05, 1.0),
+    scale: clamp(p.scale, 0.05, 2.0),
     glow: clamp(p.glow, 0.0, 2.0),
+    darken: clamp(p.darken != null ? p.darken : 1.0, 0.0, 2.0),
     strength: clamp(p.strength, 0.0, 1.0),
     refract: clamp(p.refract, 0.0, 1.0),
     quality: clamp(p.quality, 0.0, 3.0),
-    haze: haze && hazeAmt > 0.001 ? hazeAmt : 0,
+    haze: Math.max(hazeFrom, hazeTo),
     fireHaze: !!p.fireHaze,
     pixelRatio: clamp(p.pixelRatio, 1.0, 4.0),
-    azimuth: clamp(p.azimuth, 0.0, 2.0)
+    azimuth: clamp(p.azimuth, 0.0, 2.0),
+    rainFrom: rainFrom,
+    rainTo: rainTo,
+    hazeFrom: hazeFrom,
+    hazeTo: hazeTo,
+    fadeSec: clamp(p.fadeSec, 0.0, 12.0),
+    timeOffset: clamp(p.timeOffset, 0.0, 1000000.0)
   }
 }
 
@@ -128,7 +141,7 @@ function rainHelpers(stormRain) {
     + "  theta *= rng.z;\n"
     + "  float distanceScale = 0.2 / (1.0 - 0.8 * cos(theta - 3.141593 * 0.5 - 1.6));\n"
     + "  float yDistance = abs(tempUV.y - randomPoint.y);\n"
-    + "  float sizeMul = max(min(scale, 1.0), 0.05);\n"
+    + "  float sizeMul = max(min(scale, 2.0), 0.05);\n"
     + "  float dropSize = 1.65 * (0.2 + distanceScale) * distanceMaxRange * mix(1.5, 0.5, rng.x) * sizeMul;\n"
     + "  vec2 tempXY = vec2(xy.x, xy.y) * (4.0 / sizeMul);\n"
     + "  float randomScale = ProportionalMapToRange(0.85, 1.35, rng.z);\n"
@@ -171,7 +184,7 @@ function rainHelpers(stormRain) {
     + "  float theta = 3.141592653 - acos(clamp(dot(dirN, vec2(0.0, 1.0)), -1.0, 1.0));\n"
     + "  theta *= rng.z;\n"
     + "  float distanceScale = 0.2 / (1.0 - 0.8 * cos(theta - 3.141593 * 0.5 - 1.6));\n"
-    + "  float sizeMul = max(min(scale, 1.0), 0.05);\n"
+    + "  float sizeMul = max(min(scale, 2.0), 0.05);\n"
     + "  float dropSize = 1.65 * (0.2 + distanceScale) * 1.45 * mix(1.0, 0.25, rng.x) * sizeMul;\n"
     + "  vec2 tempXY = vec2(xy.x, xy.y) * (4.0 / sizeMul);\n"
     + "  tempXY = tempXY * vec2(1.0, 4.2) + edge * 0.85;\n"
@@ -258,7 +271,6 @@ function hazeHelpers() {
 
 function build(params) {
   var p = sanitize(params)
-  if (!p.rain && !p.haze) return ""
 
   var s = ""
   s += "#version 300 es\n"
@@ -270,109 +282,108 @@ function build(params) {
   s += "uniform float time;\n"
   s += "\nlayout(location = 0) out vec4 fragColor;\n\n"
 
-  if (p.rain) {
-    s += "const float density  = " + f(p.density) + ";\n"
-    s += "const float scale    = " + f(p.scale) + ";\n"
-    s += "const float quality  = " + f(p.quality) + ";\n"
-    s += "const float SPEED    = " + f(p.speed) + ";\n"
-    s += "const float STRENGTH = " + f(p.strength) + ";\n"
-    s += "const float REFRACT  = " + f(p.refract) + ";\n"
-    s += "const float SHEEN    = " + f(p.glow) + ";\n"
-    s += "const float PIXEL_RATIO = " + f(p.pixelRatio) + ";\n"
-    if (p.stormRain) {
-      s += "const float AZIMUTH  = " + f(p.azimuth) + ";\n"
-      s += "const float STORM_TIME = 1.45000;\n"
-    }
+  s += "const float density  = " + f(p.density) + ";\n"
+  s += "const float scale    = " + f(p.scale) + ";\n"
+  s += "const float quality  = " + f(p.quality) + ";\n"
+  s += "const float SPEED    = " + f(p.speed) + ";\n"
+  s += "const float STRENGTH = " + f(p.strength) + ";\n"
+  s += "const float REFRACT  = " + f(p.refract) + ";\n"
+  s += "const float SHEEN    = " + f(p.glow) + ";\n"
+  s += "const float DARKEN   = " + f(p.darken) + ";\n"
+  s += "const float PIXEL_RATIO = " + f(p.pixelRatio) + ";\n"
+  if (p.stormRain) {
+    s += "const float AZIMUTH  = " + f(p.azimuth) + ";\n"
+    s += "const float STORM_TIME = 1.45000;\n"
   }
-  if (p.haze) {
-    s += "const float HAZE     = " + f(p.haze) + ";\n"
-  }
+  s += "const float RAIN_FROM = " + f(p.rainFrom) + ";\n"
+  s += "const float RAIN_TO   = " + f(p.rainTo) + ";\n"
+  s += "const float HAZE_FROM = " + f(p.hazeFrom) + ";\n"
+  s += "const float HAZE_TO   = " + f(p.hazeTo) + ";\n"
+  s += "const float FADE_SEC  = " + f(p.fadeSec) + ";\n"
+  s += "const float TIME_OFFSET = " + f(p.timeOffset) + ";\n"
   s += "\n"
 
-  if (p.rain) s += rainHelpers(p.stormRain)
-  if (p.haze) s += hazeHelpers()
+  s += rainHelpers(p.stormRain)
+  s += hazeHelpers()
 
   s += "void main() {\n"
   s += "  vec2 res = max(fullSize, vec2(1.0));\n"
   s += "  vec2 texel = 1.0 / res;\n"
-  s += "  vec2 uv = v_texcoord;\n\n"
+  s += "  vec2 uv = v_texcoord;\n"
+  s += "  float clock = time + TIME_OFFSET;\n"
+  s += "  float fade = FADE_SEC > 0.001 ? smoothstep(0.0, FADE_SEC, time) : 1.0;\n"
+  s += "  float rainAmt = mix(RAIN_FROM, RAIN_TO, fade);\n"
+  s += "  float hazeAmt = mix(HAZE_FROM, HAZE_TO, fade);\n"
+  s += "\n"
 
-  if (p.haze) {
-    s += "  {\n"
-    s += "    // Rising air expands: fine at the ground, longer wavelength and\n"
-    s += "    // slower climb as loft increases (uv.y is 1 at the bottom).\n"
-    s += "    float loft = 1.0 - uv.y;\n"
-    s += "    float expand = 1.0 + 3.2 * loft * loft;\n"
-    s += "    vec2 field = vec2((uv.x - 0.5) * res.x / (6.5 * expand),\n"
-    s += "                     uv.y * res.y / 6.5 - time * 8.5 / expand);\n"
-    s += "    float n1 = vnoise(field) * 2.0 - 1.0;\n"
-    s += "    float n2 = vnoise(field * 2.3 + vec2(3.1, time * 2.4 / expand)) * 2.0 - 1.0;\n"
-    s += "    vec2 heat = vec2(n1 + n2 * 0.45, (n2 - n1) * 0.28);\n"
-    if (p.fireHaze) {
-      s += "    float band = smoothstep(0.38, 1.0, uv.y);\n"
-      s += "    band *= band;\n"
-    } else {
-      s += "    float yn = uv.y * 2.0 - 1.0;\n"
-      s += "    float band = smoothstep(-1.05, 0.85, yn);\n"
-      s += "    band *= band;\n"
-    }
-    s += "    uv += heat * HAZE * 0.0002 * band;\n"
-    s += "    uv = clamp(uv, texel * 2.0, 1.0 - texel * 2.0);\n"
-    s += "  }\n\n"
+  s += "  {\n"
+  s += "    float loft = 1.0 - uv.y;\n"
+  s += "    float expand = 1.0 + 3.2 * loft * loft;\n"
+  s += "    vec2 field = vec2((uv.x - 0.5) * res.x / (6.5 * expand),\n"
+  s += "                     uv.y * res.y / 6.5 - clock * 8.5 / expand);\n"
+  s += "    float n1 = vnoise(field) * 2.0 - 1.0;\n"
+  s += "    float n2 = vnoise(field * 2.3 + vec2(3.1, clock * 2.4 / expand)) * 2.0 - 1.0;\n"
+  s += "    vec2 heat = vec2(n1 + n2 * 0.45, (n2 - n1) * 0.28);\n"
+  if (p.fireHaze) {
+    s += "    float band = smoothstep(0.38, 1.0, uv.y);\n"
+    s += "    band *= band;\n"
+  } else {
+    s += "    float yn = uv.y * 2.0 - 1.0;\n"
+    s += "    float band = smoothstep(-1.05, 0.85, yn);\n"
+    s += "    band *= band;\n"
   }
+  s += "    uv += heat * hazeAmt * 0.0002 * band;\n"
+  s += "    uv = clamp(uv, texel * 2.0, 1.0 - texel * 2.0);\n"
+  s += "  }\n\n"
 
-  if (p.rain) {
-    s += "  float unit = 1080.0 * PIXEL_RATIO;\n"
-    s += "  vec2 frag = vec2(v_texcoord.x, 1.0 - v_texcoord.y) * res;\n"
-    s += "  vec2 rainUV = (frag - 0.5 * res) / unit;\n"
-    s += "  vec4 rain = Raindrops(rainUV, time * max(SPEED, 0.0)" + (p.stormRain ? " * STORM_TIME" : "") + ");\n"
-    s += "  float h = rain.x;\n"
-    s += "  vec2 deriv = rain.yz;\n"
-    s += "  float trail = rain.w;\n"
-    s += "  vec2 slope = deriv * 0.85;\n"
-    s += "  vec3 N = normalize(vec3(-slope, 1.0));\n"
-    s += "  float body = smoothstep(0.0, 0.22, h);\n"
-    s += "  float trailFilm = smoothstep(0.02, 0.45, trail) * (1.0 - body);\n"
-    s += "  float cover = max(smoothstep(0.0, max(fwidth(h) * 2.35, 0.011), h),\n"
-    s += "                   smoothstep(0.0, max(fwidth(trail) * 2.1, 0.035), trail));\n"
-    s += "  float warpAmt = REFRACT * STRENGTH * 0.00225;\n"
-    s += "  warpAmt *= mix(0.20, 1.0, smoothstep(0.0, 0.18, h));\n"
-    s += "  warpAmt *= mix(1.0, 0.28, trailFilm);\n"
-    s += "  warpAmt *= cover;\n"
-    s += "  if (cover > 0.02)\n"
-    s += "    uv += N.xy * warpAmt;\n"
-    s += "  uv = clamp(uv, texel * 2.0, 1.0 - texel * 2.0);\n\n"
-  }
+  s += "  float unit = 1080.0 * PIXEL_RATIO;\n"
+  s += "  vec2 frag = vec2(v_texcoord.x, 1.0 - v_texcoord.y) * res;\n"
+  s += "  vec2 rainUV = (frag - 0.5 * res) / unit;\n"
+  s += "  vec4 rain = Raindrops(rainUV, clock * max(SPEED, 0.0)" + (p.stormRain ? " * STORM_TIME" : "") + ");\n"
+  s += "  float h = rain.x;\n"
+  s += "  vec2 deriv = rain.yz;\n"
+  s += "  float trail = rain.w;\n"
+  s += "  vec2 slope = deriv * 0.85;\n"
+  s += "  vec3 N = normalize(vec3(-slope, 1.0));\n"
+  s += "  float body = smoothstep(0.0, 0.22, h);\n"
+  s += "  float trailFilm = smoothstep(0.02, 0.45, trail) * (1.0 - body);\n"
+  s += "  float cover = max(smoothstep(0.0, max(fwidth(h) * 2.35, 0.011), h),\n"
+  s += "                   smoothstep(0.0, max(fwidth(trail) * 2.1, 0.035), trail));\n"
+  s += "  float warpAmt = REFRACT * STRENGTH * 0.00225 * rainAmt;\n"
+  s += "  warpAmt *= mix(0.20, 1.0, smoothstep(0.0, 0.18, h));\n"
+  s += "  warpAmt *= mix(1.0, 0.28, trailFilm);\n"
+  s += "  warpAmt *= cover;\n"
+  s += "  if (cover > 0.02)\n"
+  s += "    uv += N.xy * warpAmt;\n"
+  s += "  uv = clamp(uv, texel * 2.0, 1.0 - texel * 2.0);\n\n"
 
   s += "  vec3 col = texture(tex, uv).rgb;\n"
 
-  if (p.rain) {
-    s += "  if (h > 0.0 || trail > 0.0) {\n"
-    s += "    vec3 L = normalize(vec3(-0.34, 0.58, 0.74));\n"
-    s += "    vec3 V = vec3(0.0, 0.0, 1.0);\n"
-    s += "    vec3 Hv = normalize(L + V);\n"
-    s += "    float ndotl = max(dot(N, L), 0.0);\n"
-    s += "    float specBroad = pow(max(dot(N, Hv), 0.0), 28.0);\n"
-    s += "    float spec = quality < 0.5 ? 0.0 : pow(max(dot(N, Hv), 0.0), quality > 2.5 ? 140.0 : 96.0);\n"
-    s += "    float fresnel = pow(clamp(1.0 - max(N.z, 0.0), 0.0, 1.0), 6.5);\n"
-    s += "    float steep = length(slope);\n"
-    s += "    float meniscus = 0.0;\n"
-    s += "    if (quality > 0.5)\n"
-    s += "      meniscus = pow(smoothstep(0.28, 0.82, steep), 2.6) * smoothstep(0.0, 0.02, h)\n"
-    s += "          * (1.0 - smoothstep(0.05, 0.16, h));\n"
-    s += "    float body = smoothstep(0.0, 0.22, h);\n"
-    s += "    float trailFilm = smoothstep(0.02, 0.45, trail) * (1.0 - smoothstep(0.15, 0.55, h));\n"
-    s += "    float darken = body * mix(0.12, 0.04, ndotl) + trailFilm * 0.04;\n"
-    s += "    float sheen = clamp(SHEEN, 0.0, 2.0);\n"
-    s += "    float brighten = (meniscus * 0.22 + fresnel * 0.08 + spec * 0.70 + specBroad * 0.06) * sheen;\n"
-    s += "    vec3 glass = vec3(0.78, 0.91, 1.0);\n"
-    s += "    vec3 hi = glass * (meniscus * 0.70 + fresnel * 0.22 + spec * 1.35 + specBroad * 0.12)\n"
-    s += "        * mix(0.55, 1.15, sheen * 0.5);\n"
-    s += "    hi *= mix(0.70, 1.0, ndotl * 0.55 + 0.45);\n"
-    s += "    col *= 1.0 - darken * 0.55 * STRENGTH * cover;\n"
-    s += "    col += hi * brighten * STRENGTH * cover;\n"
-    s += "  }\n"
-  }
+  s += "  if (rainAmt > 0.001 && (h > 0.0 || trail > 0.0)) {\n"
+  s += "    vec3 L = normalize(vec3(-0.34, 0.58, 0.74));\n"
+  s += "    vec3 V = vec3(0.0, 0.0, 1.0);\n"
+  s += "    vec3 Hv = normalize(L + V);\n"
+  s += "    float ndotl = max(dot(N, L), 0.0);\n"
+  s += "    float specBroad = pow(max(dot(N, Hv), 0.0), 28.0);\n"
+  s += "    float spec = quality < 0.5 ? 0.0 : pow(max(dot(N, Hv), 0.0), quality > 2.5 ? 140.0 : 96.0);\n"
+  s += "    float fresnel = pow(clamp(1.0 - max(N.z, 0.0), 0.0, 1.0), 6.5);\n"
+  s += "    float steep = length(slope);\n"
+  s += "    float meniscus = 0.0;\n"
+  s += "    if (quality > 0.5)\n"
+  s += "      meniscus = pow(smoothstep(0.28, 0.82, steep), 2.6) * smoothstep(0.0, 0.02, h)\n"
+  s += "          * (1.0 - smoothstep(0.05, 0.16, h));\n"
+  s += "    float body = smoothstep(0.0, 0.22, h);\n"
+  s += "    float trailFilm = smoothstep(0.02, 0.45, trail) * (1.0 - smoothstep(0.15, 0.55, h));\n"
+  s += "    float darken = (body * mix(0.12, 0.04, ndotl) + trailFilm * 0.04) * DARKEN;\n"
+  s += "    float sheen = clamp(SHEEN, 0.0, 2.0);\n"
+  s += "    float brighten = (meniscus * 0.22 + fresnel * 0.08 + spec * 0.70 + specBroad * 0.06) * sheen;\n"
+  s += "    vec3 glass = vec3(0.78, 0.91, 1.0);\n"
+  s += "    vec3 hi = glass * (meniscus * 0.70 + fresnel * 0.22 + spec * 1.35 + specBroad * 0.12)\n"
+  s += "        * mix(0.55, 1.15, sheen * 0.5);\n"
+  s += "    hi *= mix(0.70, 1.0, ndotl * 0.55 + 0.45);\n"
+  s += "    col *= 1.0 - darken * 0.55 * STRENGTH * cover * rainAmt;\n"
+  s += "    col += hi * brighten * STRENGTH * cover * rainAmt;\n"
+  s += "  }\n"
 
   s += "  fragColor = vec4(col, 1.0);\n"
   s += "}\n"

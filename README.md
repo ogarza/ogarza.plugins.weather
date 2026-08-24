@@ -60,7 +60,7 @@ omarchy pkg drop qt6-shadertools
 
 **Quality** (Low, Medium, High, Extreme) trades sharpness for cost. High is the default. The overlay still renders at 33% / 50% / 75% / 100% of native pixels. Rain and Stormy drop work no longer drops as far: Low uses the old Medium layers, Medium matches High, Extreme still adds another drop pass. If the desktop feels heavy, drop quality first.
 
-**Hyprland distortion** is a global switch for refraction and haze. On (the default) warps the real desktop. Off leaves those sliders alone but uses the painted overlay only, and clears the Hyprland shader if this plugin had applied it.
+**Hyprland distortion** is a global switch for refraction and haze. On (the default) keeps one combined Hyprland shader the whole time: rain and haze share that program, and the unused term is multiplied by 0 (Fog and Snow stay applied). Off leaves those sliders alone, uses the painted overlay, and clears the shader.
 
 Mode changes in the panel fade over about two seconds. Follow fades forecast changes over about ten.
 
@@ -97,14 +97,15 @@ Follow never picks fire, rainbow, or custom. Clear sky is sunny. Partly cloudy b
 
 ### Tweaks
 
-Columns to the right of the mode list show a short description and the sliders for that look (or the Follow / Exclusive condition). Values persist in shell config.
+Columns to the right of the mode list show a short description and the sliders for that look (or the Follow / Exclusive condition). Overlay uniforms update while you drag. Hyprland distortion rebuilds when you release the slider. Values persist in shell config.
 
 - **Strength** — overall intensity on single-shader modes
 - **Clouds / Sun / Moon / Rain / Snow / Haze / Layer A / B / C** — mix layer strengths
 - **Add Rainbow** — optional rainbow on any other condition (off by default)
 - **Density** / **Speed** — coverage and motion
-- **Scale** / **Size** — drop, flake, flame, cloud, or rainbow size
+- **Scale** / **Size** — drop, flake, flame, cloud, or rainbow size. Rain and Stormy Scale go to 200%; default 100% is the old max
 - **Sheen** — glints on rain and storm drops
+- **Darken** — how much raindrops tint the glass (painted overlay and Hyprland)
 - **Refract** — warp the real desktop through rain or storm drops (Hyprland). Default 100%. 0 keeps the painted overlay
 - **Haze** — heat shimmer on Sunny and Fire
 - **On above** — outdoor temperature where sunny haze turns on (default 90°F / 32.2°C). Fire haze ignores this
@@ -169,11 +170,11 @@ IPC `toggle` is the panel. `power` is the overlay.
 
 ## Desktop refraction (Hyprland)
 
-With **Hyprland distortion** on, Rain or Stormy with **Refract** above 0, and Sunny or Fire with **Haze** above 0, apply a Hyprland screen shader at runtime. Hyprland only has one of those. If another plugin (Phosphor, for example) also sets it, whichever applied last wins.
+With **Hyprland distortion** on, one combined screen shader stays applied: rain and haze share it, and the unused term is 0. Hyprland only has one shader slot. If another plugin (Phosphor, for example) also sets it, whichever applied last wins.
 
 On load and when the panel opens, this plugin scans the other folders under `~/.config/omarchy/plugins` for `.qml` / `.js` that mention `screen_shader`. It skips its own folder. If it finds a sibling, the panel shows a warning with that plugin’s name from `manifest.json`. It does not disable the other plugin or fight for the slot — it is only a heads-up that refraction or haze may disappear if the other shader applied last.
 
-The generated file lives in `${XDG_STATE_HOME:-~/.local/state}/ogarza.plugins.weather/current.frag`. Nothing is written to `~/.config/hypr/`.
+The generated files live in `${XDG_STATE_HOME:-~/.local/state}/ogarza.plugins.weather/current.a.frag` and `current.b.frag` (two paths so Hyprland reloads when rain or haze changes). Nothing is written to `~/.config/hypr/`.
 
 While refraction or haze is on, the monitor redraws every frame so the warp can animate. Clicks through a warped drop or the haze band land a little off from what you see.
 
@@ -184,7 +185,7 @@ hyprctl eval 'hl.config({ decoration = { screen_shader = "" } })'
 hyprctl eval 'hl.config({ debug = { damage_tracking = 2 } })'
 ```
 
-Snow, fog, rainbow, and lightning stay on the overlay. When Hyprland is already drawing the rain, the overlay skips painted drops so they are not drawn twice.
+Snow, fog, rainbow, and lightning stay on the overlay. When Hyprland is drawing the rain, the overlay does not paint drops.
 
 ## Requirements
 

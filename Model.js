@@ -372,6 +372,13 @@ function rainRefractSource(visual, params, shaderA, shaderB, shaderC) {
   return ""
 }
 
+function overlaySkipsRainDrops(hyprEnabled, preset, params) {
+  if (!hyprEnabled) return false
+  var p = String(preset || "")
+  if (p !== "rain" && p !== "stormy") return false
+  return paramValue(params, p, "refract", 1) > 0.001
+}
+
 // 90°F in Celsius. Stored unit is always °C; the panel shows °F when locale is imperial.
 var defaultHazeTempC = (90 - 32) * 5 / 9
 
@@ -424,6 +431,8 @@ function screenShaderKind(visual, params, shaderA, shaderB, shaderC, outdoorTemp
   return parts.join("+")
 }
 
+var hyprRainFadeSec = 0.6
+
 function visualNeedsScreenShader(visual, params, shaderA, shaderB, shaderC, outdoorTempC) {
   return screenShaderKind(visual, params, shaderA, shaderB, shaderC, outdoorTempC) !== ""
 }
@@ -440,6 +449,7 @@ function hyprShaderInput(visual, params, quality, shaderA, shaderB, shaderC, pix
     speed: paramValue(params, rainPreset, "speed", stormRain ? 1.15 : 1),
     scale: paramValue(params, rainPreset, "scale", 1),
     glow: stormRain ? paramValue(params, "stormy", "sheen", 0.6) : paramValue(params, "rain", "glow", 0.6),
+    darken: stormRain ? paramValue(params, "stormy", "darken", 1) : paramValue(params, "rain", "darken", 1),
     strength: stormRain
       ? stormLayerStrength(visual, params, shaderA, shaderB, shaderC)
       : rainLayerStrength(visual, params, shaderA, shaderB, shaderC),
@@ -449,7 +459,13 @@ function hyprShaderInput(visual, params, quality, shaderA, shaderB, shaderC, pix
     fireHaze: haze.fireHaze,
     pixelRatio: pixelRatio,
     stormRain: stormRain,
-    azimuth: paramValue(params, "stormy", "azimuth", 1)
+    azimuth: paramValue(params, "stormy", "azimuth", 1),
+    rainFrom: rainSrc !== "" ? 1 : 0,
+    rainTo: rainSrc !== "" ? 1 : 0,
+    hazeFrom: haze.amount,
+    hazeTo: haze.amount,
+    fadeSec: 0,
+    timeOffset: 0
   }
 }
 
@@ -568,8 +584,9 @@ var tweakFields = {
   rain: [
     { key: "density", label: "Density", kind: "slider", max: 2.4 },
     { key: "speed", label: "Speed", kind: "slider", max: 2 },
-    { key: "scale", label: "Scale", kind: "slider", max: 1 },
+    { key: "scale", label: "Scale", kind: "slider", max: 2 },
     { key: "glow", label: "Sheen", kind: "slider", max: 2 },
+    { key: "darken", label: "Darken", kind: "slider", max: 2 },
     { key: "refract", label: "Refract", kind: "slider", max: 1 }
   ],
   snow: [
@@ -595,7 +612,7 @@ var tweakFields = {
   stormy: [
     { key: "density", label: "Density", kind: "slider", max: 2.4 },
     { key: "speed", label: "Speed", kind: "slider", max: 2 },
-    { key: "scale", label: "Scale", kind: "slider", max: 1 },
+    { key: "scale", label: "Scale", kind: "slider", max: 2 },
     { key: "sheen", label: "Sheen", kind: "slider", max: 2 },
     { key: "refract", label: "Refract", kind: "slider", max: 1 },
     { key: "lightning", label: "Flash", kind: "slider", max: 2 },
@@ -626,7 +643,7 @@ var tweakFields = {
 
 function defaultParams() {
   var out = {
-    rain: { strength: 1, density: 0.8, speed: 1, scale: 1, glow: 0.6, refract: 1, enableC: 0, strengthC: 0.65 },
+    rain: { strength: 1, density: 0.8, speed: 1, scale: 1, glow: 0.6, darken: 1, refract: 1, enableC: 0, strengthC: 0.65 },
     snow: { strength: 1, density: 0.8, speed: 1, scale: 0.8, glow: 0.3, enableC: 0, strengthC: 0.65 },
     fog: { strength: 1, density: 1, speed: 0.9, scale: 1, enableC: 0, strengthC: 0.65 },
     sunny: { strength: 1, glow: 1, speed: 1, density: 1.2, azimuth: 1.2, distance: 1, haze: 0.5, temperature: defaultHazeTempC, enableC: 0, strengthC: 0.65 },
@@ -795,7 +812,7 @@ function fieldMaximum(mode, key) {
   }
   var m = normalizedMode(mode)
   if (k === "density" && (m === "rain" || m === "stormy")) return 2.4
-  if (k === "scale" && (m === "rain" || m === "stormy")) return 1
+  if (k === "scale" && (m === "rain" || m === "stormy")) return 2
   if (k === "scale" && m === "rainbow") return 4
   return 2
 }
