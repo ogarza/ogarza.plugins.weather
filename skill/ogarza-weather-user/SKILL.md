@@ -1,6 +1,6 @@
 ---
 name: ogarza-weather-user
-description: Control the ogarza.plugins.weather Omarchy overlay with IPC (rain, snow, fog, sun, storm, fire, rainbow, Add Rainbow on a condition such as sun shower, Custom three-layer stack, Follow, Hyprland refraction/haze). Use when the user wants to change the look, make it rain harder, add a rainbow to sun shower, stack custom layers, turn distortion on or off, or switch modes — not when editing plugin source.
+description: Control the ogarza.plugins.weather Omarchy overlay with IPC. Interpret look requests (harder rain → density, beautiful → Add Rainbow, bigger drops → scale). Use for modes, Custom stacks, Follow, Hyprland distortion — not plugin source.
 ---
 
 # Omarchy weather overlay (end user)
@@ -15,17 +15,19 @@ Pass `""` to read an optional value without changing it.
 
 ## Workflow
 
-1. `overlay` if you need current mode / power / hypr.
-2. Relative tweaks: read, then set a number in range. Example — rain harder:
+1. Map **intent**, then change those knobs. Vague is OK: “raining kind of hard” → bump `param rain density` (read, then raise; default 0.8, max 2.4 — a moderate bump like 1.3, not the max). “Make it beautiful” / pretty / magical on sun, rain, or a mix → **Add Rainbow** (`enableC on` for the current condition). Bigger drops → `scale`. Faster → `speed`.
+2. Do **not** “improve” unrelated sliders. If they did not ask for drop size, leave **scale** (rain/stormy default `1`, not max `2`). Do not crank every key toward 2.
+3. `overlay` to learn mode / live weather. Tune the matching condition (`sunshower`, `rain`, …). Stay on Follow if they are following.
+4. Read the key, then set. Rain a bit harder:
 
 ```bash
 omarchy-shell ogarza.plugins.weather param rain density ""
-omarchy-shell ogarza.plugins.weather param rain density 1.4
+omarchy-shell ogarza.plugins.weather param rain density 1.3
 omarchy-shell ogarza.plugins.weather power on
 ```
 
-3. Switch to `mode rain` only if they want rain as the mode. If they are on Follow / Exclusive / a rain mix (drizzle, stormy, sunshower, wintry), leave the mode and change `param rain …` — those sliders are shared.
-4. Plugin source or shaders: out of scope.
+5. `mode rain` only if they want that as the mode. Rain mixes share `param rain …`.
+6. Plugin source or shaders: out of scope.
 
 ## Commands
 
@@ -58,6 +60,20 @@ Shader presets (`param rain density`, not the mix id):
 | `rainbow` | `glow`, `density`, `scale` (0–4), `azimuth`, `lightning` (−2–2 height), `distance`, `speed`, `nightVisible`, `nightTint`, `nightStrength` |
 
 Unless noted, sliders are 0–2. Mixes also take `strengthA` / `strengthB` / `strengthC` (0–1) on the **condition** id (`param drizzle strengthB`). Singles use `param rain strength`. Custom uses `param custom strengthA` / `strengthB` / `strengthC` (0–1); look knobs stay on the shader (`param rain density`).
+
+Factory defaults (stored numbers). Start from these or from the live value (`param … ""`). `reset` restores the table. Do not write a default back unless they asked to reset.
+
+| Preset | Defaults |
+|--------|----------|
+| `rain` | strength 1, density 0.8, speed 1, **scale 1**, glow 0.6, darken 1, refract 1, enableC off, strengthC 0.65 |
+| `snow` | strength 1, density 0.8, speed 1, **scale 0.8**, glow 0.3, enableC off, strengthC 0.65 |
+| `fog` | strength 1, density 1, speed 0.9, **scale 1**, enableC off, strengthC 0.65 |
+| `sunny` | strength 1, glow 1, speed 1, density 1.2, azimuth 1.2, distance 1, haze 0.5, temperature 32.2 (°C), enableC off, strengthC 0.65 |
+| `stormy` | strength 1, density 1, speed 1.15, **scale 1**, sheen 0.6, refract 1, lightning 1.5, frequency 1, glow 1, azimuth 1, enableC off, strengthC 0.65 |
+| `fire` | strength 1, density 1, speed 0.5, **scale 1**, glow 1, haze 0.5, enableC off, strengthC 0.65 |
+| `rainbow` | strength 1, glow 1, density 1, **scale 1**, azimuth 0.8, lightning 0.65, distance 1, speed 1, nightVisible off, nightTint 1, nightStrength 0.7 |
+
+Mix layer strengths default per condition (enableC off, strengthC 0.65): partly A 0.5 B 0.85; overcast A 1 B 0.18; sunshower A 0.6 B 0.7; moonlit A 0.35 B 0.9; drizzle A 0.55 B 0.5; squall A 0.8 B 0.4; wintry A 1 B 0.5; custom A/B/C 0.7.
 
 ## Add Rainbow
 
@@ -98,17 +114,16 @@ omarchy-shell ogarza.plugins.weather mode custom
 omarchy-shell ogarza.plugins.weather layer a rain
 omarchy-shell ogarza.plugins.weather layer b fog
 omarchy-shell ogarza.plugins.weather layer c fire
-omarchy-shell ogarza.plugins.weather param custom strengthA 0.7
-omarchy-shell ogarza.plugins.weather param custom strengthB 0.5
-omarchy-shell ogarza.plugins.weather param custom strengthC 0.4
 omarchy-shell ogarza.plugins.weather power on
 ```
 
 ## Examples
 
-- Rain harder → read/set `param rain density`; `power on`.
-- Rainbow on Sun shower → `param sunshower enableC on` (or `toggle`). Follow: same, do not switch mode.
+- “Raining kind of hard” → raise `param rain density` from current/default 0.8 (e.g. 1.2–1.5). Leave scale at 1 unless they want bigger drops.
+- “Make it beautiful” on sun shower / rain / sunny → `param <condition> enableC on` (Add Rainbow). Do not max scale.
+- Bigger flakes/drops → `param snow scale` or `param rain scale` (rain max 2; default 1).
+- Rainbow on Sun shower → `param sunshower enableC on`. Follow: same, do not switch mode.
 - Stack rain, fog, and fire → Custom recipe above.
-- Turn off desktop warp → `hypr off`. Turn it back on → `hypr on`. Weaker warp with distortion still on → lower `param rain refract` / `param sunny haze`.
+- Turn off desktop warp → `hypr off`. Weaker warp → lower `param rain refract` / `param sunny haze`.
 - Follow the forecast → `mode follow`.
 - Overlay off → `power off`.
