@@ -1,6 +1,6 @@
 ---
 name: ogarza-weather-user
-description: Control the ogarza.plugins.weather Omarchy overlay with IPC. Interpret look requests (harder rain → density, beautiful → Add Rainbow, bigger drops → scale). Use for modes, Custom stacks, Follow, Hyprland distortion — not plugin source.
+description: Control the ogarza.plugins.weather Omarchy overlay with IPC. Combine looks with Custom (fire+clouds → fog+fire layers). Layer loudness is param custom strengthA/B/C for that slot, not param fire strength. Harder rain → density, beautiful → Add Rainbow. Not plugin source.
 ---
 
 # Omarchy weather overlay (end user)
@@ -26,8 +26,9 @@ omarchy-shell ogarza.plugins.weather param rain density 1.3
 omarchy-shell ogarza.plugins.weather power on
 ```
 
-5. `mode rain` only if they want that as the mode. Rain mixes share `param rain …`.
-6. Plugin source or shaders: out of scope.
+5. Two or more looks at once (fire and clouds, rain and fire, …) if it is not a named mix → **Custom**. Clouds = `fog`. See Custom below. “Make the fire less strong” then → that **slot’s** `param custom strengthA|B|C`, not `param fire strength`.
+6. `mode rain` only if they want that as the mode. Rain mixes share `param rain …`.
+7. Plugin source or shaders: out of scope.
 
 ## Commands
 
@@ -59,7 +60,7 @@ Shader presets (`param rain density`, not the mix id):
 | `fire` | `density`, `speed`, `scale`, `glow`, `haze` |
 | `rainbow` | `glow`, `density`, `scale` (0–4), `azimuth`, `lightning` (−2–2 height), `distance`, `speed`, `nightVisible`, `nightTint`, `nightStrength` |
 
-Unless noted, sliders are 0–2. Mixes also take `strengthA` / `strengthB` / `strengthC` (0–1) on the **condition** id (`param drizzle strengthB`). Singles use `param rain strength`. Custom uses `param custom strengthA` / `strengthB` / `strengthC` (0–1); look knobs stay on the shader (`param rain density`).
+Unless noted, sliders are 0–2. Named mixes take `strengthA` / `strengthB` / `strengthC` on the **condition** id (`param drizzle strengthB`). Standalone Rain uses `param rain strength`. **Custom mix loudness is `param custom strengthA` / `strengthB` / `strengthC` (0–1)** for slots A/B/C. Shader look (density, glow, …) stays on the shader (`param fire glow`). `param fire strength` only affects standalone `mode fire`, not a Custom fire layer.
 
 Factory defaults (stored numbers). Start from these or from the live value (`param … ""`). `reset` restores the table. Do not write a default back unless they asked to reset.
 
@@ -107,15 +108,36 @@ omarchy-shell ogarza.plugins.weather hypr toggle
 
 ## Custom (three layers)
 
-`mode custom` stacks up to three shaders. `layer` does nothing in other modes. `none` turns a slot off. Look sliders are shared with standalone Rain, Fog, etc.
+Named mixes are only the mode ids (`sunshower`, `drizzle`, `partly`, …). **Fire + clouds is not a named mix.** Stack it with Custom. Clouds / Cloud/Fog = `fog`.
+
+`mode custom` then `layer` (only works in Custom). `none` turns a slot off. `overlay` does not list slots — read them:
+
+```bash
+omarchy-shell ogarza.plugins.weather layer a ""
+omarchy-shell ogarza.plugins.weather layer b ""
+omarchy-shell ogarza.plugins.weather layer c ""
+```
+
+How loud that slot is: `param custom strengthA` (slot a), `strengthB` (b), `strengthC` (c). Default 0.7. How the fire *looks* (flames, glow, haze): `param fire …`.
+
+Fire and clouds:
 
 ```bash
 omarchy-shell ogarza.plugins.weather mode custom
-omarchy-shell ogarza.plugins.weather layer a rain
-omarchy-shell ogarza.plugins.weather layer b fog
-omarchy-shell ogarza.plugins.weather layer c fire
+omarchy-shell ogarza.plugins.weather layer a fog
+omarchy-shell ogarza.plugins.weather layer b fire
+omarchy-shell ogarza.plugins.weather layer c none
 omarchy-shell ogarza.plugins.weather power on
 ```
+
+Then “make the fire less strong” (fire is B):
+
+```bash
+omarchy-shell ogarza.plugins.weather param custom strengthB ""
+omarchy-shell ogarza.plugins.weather param custom strengthB 0.35
+```
+
+If fire is on A, use `strengthA`. Do not set `param fire strength` for this.
 
 ## Examples
 
@@ -123,7 +145,8 @@ omarchy-shell ogarza.plugins.weather power on
 - “Make it beautiful” on sun shower / rain / sunny → `param <condition> enableC on` (Add Rainbow). Do not max scale.
 - Bigger flakes/drops → `param snow scale` or `param rain scale` (rain max 2; default 1).
 - Rainbow on Sun shower → `param sunshower enableC on`. Follow: same, do not switch mode.
-- Stack rain, fog, and fire → Custom recipe above.
+- “Fire and clouds” / fire + fog → Custom: `layer a fog`, `layer b fire`, `layer c none`. Then weaker fire → `param custom strengthB` (the fire slot), not `param fire strength`.
+- Stack rain, fog, and fire → Custom, three layers.
 - Turn off desktop warp → `hypr off`. Weaker warp → lower `param rain refract` / `param sunny haze`.
 - Follow the forecast → `mode follow`.
 - Overlay off → `power off`.
