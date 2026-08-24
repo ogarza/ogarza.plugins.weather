@@ -6,8 +6,8 @@ import "Model.js" as Model
 
 Panel {
   id: root
-  moduleName: "ogarza.weather"
-  ipcTarget: "ogarza.weather"
+  moduleName: Model.pluginId
+  ipcTarget: Model.pluginId
   manageIpc: false
 
   property var anchorItem: null
@@ -15,7 +15,7 @@ Panel {
   readonly property var barIdentity: hostWidget || root
 
   readonly property var fx: bar && bar.shell && typeof bar.shell.serviceFor === "function"
-    ? bar.shell.serviceFor("ogarza.weather") : null
+    ? bar.shell.serviceFor(Model.pluginId) : null
 
   readonly property var modeList: Model.modes
   readonly property var liveModeList: Model.modesForPanel(false)
@@ -485,7 +485,7 @@ Panel {
             PanelHero {
               id: hero
               width: parent.width
-              title: "ogarza.weather"
+              title: Model.pluginId
               meta: root.heroMeta
               foreground: root.foreground
               fontFamily: root.fontFamily
@@ -590,6 +590,16 @@ Panel {
                 anchors.verticalCenter: parent.verticalCenter
               }
             }
+          }
+
+          Text {
+            width: parent.width
+            visible: !!(root.fx && root.fx.qsbBakerWarning)
+            text: root.fx ? root.fx.qsbBakerWarning : ""
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
           }
 
           Text {

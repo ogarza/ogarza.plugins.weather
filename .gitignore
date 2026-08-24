@@ -1,2 +1,1 @@
-# Compiled Qt shader binaries (rebuilt from *.frag by qsb on load)
-*.qsb
+# Overlay shaders/*.frag.qsb are tracked. Rebuild them with qsb when you edit a .frag.

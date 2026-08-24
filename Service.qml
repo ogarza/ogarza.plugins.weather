@@ -15,7 +15,7 @@ Item {
   property var manifest: null
   property var pluginRegistry: null
 
-  readonly property string pluginId: "ogarza.weather"
+  readonly property string pluginId: Model.pluginId
   readonly property string home: Quickshell.env("HOME")
   readonly property string hyprStateRoot: (Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/ogarza.weather"
   readonly property string hyprShaderPath: hyprStateRoot + "/current.frag"
@@ -31,6 +31,8 @@ Item {
   readonly property real qualityScale: Model.qualityScale(root.quality)
   readonly property bool qualityDownscale: root.quality !== "extreme"
   property var shaderFiles: []
+  property bool shaderScanDone: false
+  readonly property string qsbBakerWarning: root.shaderScanDone ? Model.qsbBakerWarning(root.shaderFiles) : ""
   property var hyprShaderRivals: []
   readonly property string hyprShaderRivalWarning: Model.hyprShaderRivalWarning(root.hyprShaderRivals)
   property var params: Model.mergeParams(null)
@@ -272,15 +274,15 @@ Item {
   readonly property string tooltipText: {
     var state = root.active ? "on" : "off"
     if (root.mode === "follow")
-      return "ogarza.weather " + state + " · Follow · " + Model.labelForPreset(root.weatherPreset || "sunny", root.nightFactor)
+      return root.pluginId + " " + state + " · Follow · " + Model.labelForPreset(root.weatherPreset || "sunny", root.nightFactor)
     if (root.mode === "exclusive") {
       var wanted = Model.labelForExclusivePreset(root.exclusivePreset, root.nightFactor)
       var wait = root.exclusiveMatch ? "" : " · waiting"
-      return "ogarza.weather " + state + " · Exclusive · " + wanted + wait
+      return root.pluginId + " " + state + " · Exclusive · " + wanted + wait
     }
     if (root.mode === "sunny")
-      return "ogarza.weather " + state + " · " + Model.labelForPreset("sunny", root.nightFactor)
-    return "ogarza.weather " + state + " · " + Model.labelForMode(root.mode)
+      return root.pluginId + " " + state + " · " + Model.labelForPreset("sunny", root.nightFactor)
+    return root.pluginId + " " + state + " · " + Model.labelForMode(root.mode)
   }
 
   property var configuredLocationState: ({ name: "", latitude: null, longitude: null, hasCoordinates: false })
@@ -296,7 +298,7 @@ Item {
     return ["bash", "-c",
       "set -euo pipefail; "
       + "curl -fsS --max-time \"$1\" --max-filesize \"$2\" -- \"$3\" | head -c \"$2\"",
-      "ogarza.weather-fetch", String(timeoutSec), String(root.weatherResponseMaxBytes), url]
+      Model.pluginId + "-fetch", String(timeoutSec), String(root.weatherResponseMaxBytes), url]
   }
 
   function consumeWeatherStdout(raw, parseFn, source) {
@@ -322,14 +324,17 @@ Item {
     return shell && shell.shellConfig ? shell.shellConfig : null
   }
 
-  function currentEntry() {
-    var config = configObject()
+  function entryAt(config, id) {
     if (!pluginRegistry || typeof pluginRegistry.findEntryLocation !== "function") return null
-    var loc = pluginRegistry.findEntryLocation(config, pluginId)
+    var loc = pluginRegistry.findEntryLocation(config, id)
     if (!loc || !loc.found) return null
     if (loc.kind === "bar") return config.bar.layout[loc.section][loc.index]
     if (loc.kind === "plugin") return config.plugins[loc.index]
     return null
+  }
+
+  function currentEntry() {
+    return root.entryAt(configObject(), pluginId)
   }
 
   function loadPersisted() {
@@ -551,11 +556,18 @@ Item {
     var dir = root.shaderDirPath
     if (!dir) return
     scanProc.command = ["bash", "-c",
-      "dir=\"$1\"; qsb=/usr/lib/qt6/bin/qsb; shopt -s nullglob; "
-      + "for f in \"$dir\"/*.frag; do out=\"${f}.qsb\"; "
+      "dir=\"$1\"; qsb=; "
+      + "for cand in /usr/lib/qt6/bin/qsb /usr/lib64/qt6/bin/qsb; do "
+      + "[[ -x \"$cand\" ]] && qsb=$cand && break; done; "
+      + "if [[ -z \"$qsb\" ]]; then c=$(command -v qsb 2>/dev/null || true); "
+      + "[[ -n \"$c\" && -x \"$c\" ]] && qsb=$c; fi; "
+      + "shopt -s nullglob; "
+      + "if [[ -z \"$qsb\" ]]; then printf 'QSB_MISSING\\n'; "
+      + "else for f in \"$dir\"/*.frag; do out=\"${f}.qsb\"; "
       + "if [[ ! -f \"$out\" || \"$f\" -nt \"$out\" ]]; then \"$qsb\" --qt6 -o \"$out\" \"$f\" || true; fi; "
-      + "done; for f in \"$dir\"/*.qsb; do basename -- \"$f\"; done",
-      "ogarza.weather-scan", dir]
+      + "done; fi; "
+      + "for f in \"$dir\"/*.qsb; do basename -- \"$f\"; done",
+      Model.pluginId + "-scan", dir]
     scanProc.running = true
     root.scanHyprRivals()
   }
@@ -568,13 +580,17 @@ Item {
       + "for dir in \"$root\"/*/; do "
       + "id=\"${dir%/}\"; id=\"${id##*/}\"; "
       + "case \"$id\" in \"$self\"|.*|*.bak*) continue ;; esac; "
+      + "man=\"$dir/manifest.json\"; "
+      + "if [[ -f \"$man\" ]]; then "
+      + "mid=$(sed -n 's/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' \"$man\" | head -1); "
+      + "case \"$mid\" in \"$self\") continue ;; esac; fi; "
       + "if grep -RIl --include='*.qml' --include='*.js' 'screen_shader' \"$dir\" >/dev/null 2>&1; then "
-      + "name=\"$id\"; man=\"$dir/manifest.json\"; "
+      + "name=\"$id\"; "
       + "if [[ -f \"$man\" ]]; then "
       + "n=$(sed -n 's/.*\"name\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' \"$man\" | head -1); "
       + "[[ -n \"$n\" ]] && name=\"$n\"; fi; "
       + "printf '%s\\t%s\\n' \"$id\" \"$name\"; fi; done",
-      "ogarza.weather-hypr-rivals", dir, root.pluginId]
+      Model.pluginId + "-hypr-rivals", dir, root.pluginId]
     hyprRivalProc.running = true
   }
 
@@ -821,7 +837,10 @@ Item {
     id: scanProc
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.shaderFiles = Model.shaderFilesFromListing(text)
+      onStreamFinished: {
+        root.shaderFiles = Model.shaderFilesFromListing(text)
+        root.shaderScanDone = true
+      }
     }
   }
 

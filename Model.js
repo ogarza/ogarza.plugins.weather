@@ -1,6 +1,8 @@
 // Modes, weather-code → preset mapping (mirrors omarchy.weather /
 // omarchy-weather-icon groups), and shader filename helpers.
 
+var pluginId = "ogarza.plugins.weather"
+
 var modes = [
   { value: "none", label: "None", icon: "󰅖", description: "No overlay. The desktop stays clear until you pick an effect." },
   { value: "rain", label: "Rain", icon: "󰖗", description: "Beads and trails on glass. With Hyprland distortion on and Refract above 0, drops warp the real desktop (painted rain is skipped so it is not drawn twice). Clicks through a warped drop land a little off. Refract 0 is the painted look only." },
@@ -22,8 +24,8 @@ var modes = [
   { value: "custom", label: "Custom", icon: "󰣖", description: "Stack up to three shaders. None turns a layer off. Sliders are shared with the standalone modes (changing rain density here also changes Rain). Manual only — Follow never picks this." }
 ]
 
-// Bar glyph: sparkles = desktop effects, not a forecast (those stay in the panel).
-var barIcon = "󰙲"
+// Bar glyph: creation sparkle = desktop effects, not a forecast (those stay in the panel).
+var barIcon = "󰙴"
 
 // Overlay render scale. Extreme is native pixels with no offscreen blit.
 var qualityLevels = [
@@ -880,6 +882,31 @@ function parseHyprShaderRivals(raw) {
     out.push({ id: id, name: name || id })
   }
   return out
+}
+
+var overlayQsbFiles = [
+  "rain.frag.qsb",
+  "snow.frag.qsb",
+  "fog.frag.qsb",
+  "sunny.frag.qsb",
+  "stormy.frag.qsb",
+  "fire.frag.qsb",
+  "rainbow.frag.qsb"
+]
+
+function overlayShadersReady(files) {
+  var have = {}
+  var list = files || []
+  for (var i = 0; i < list.length; i++) have[String(list[i])] = true
+  for (var j = 0; j < overlayQsbFiles.length; j++) {
+    if (!have[overlayQsbFiles[j]]) return false
+  }
+  return true
+}
+
+function qsbBakerWarning(files) {
+  if (overlayShadersReady(files)) return ""
+  return "The painted overlay is missing compiled shaders. Update the plugin, or install qt6-shadertools with omarchy pkg add qt6-shadertools and reopen this panel. Rain refraction and haze still work without it."
 }
 
 function hyprShaderRivalWarning(rivals) {

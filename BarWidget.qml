@@ -5,10 +5,10 @@ import "Model.js" as Model
 
 BarWidget {
   id: root
-  moduleName: "ogarza.weather"
+  moduleName: Model.pluginId
 
   readonly property var fx: bar && bar.shell && typeof bar.shell.serviceFor === "function"
-    ? bar.shell.serviceFor("ogarza.weather") : null
+    ? bar.shell.serviceFor(Model.pluginId) : null
 
   function injectPanel() {
     var target = panelLoader.item
@@ -40,7 +40,7 @@ BarWidget {
   }
 
   IpcHandler {
-    target: "ogarza.weather"
+    target: Model.pluginId
     function open() { root.open() }
     function close() { root.close() }
     function show() { root.open() }

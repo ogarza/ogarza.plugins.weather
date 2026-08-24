@@ -2,32 +2,42 @@
 
 Fullscreen weather on your Omarchy desktop: rain on glass, snow, clouds, sun, storms, fire, rainbows, and mixes. Most of it is a transparent overlay. Rain refraction and heat haze go through Hyprland so they warp the real desktop, not a painted copy.
 
-Plugin id: `ogarza.weather` · version **1.6.1**
+Plugin id: `ogarza.plugins.weather` · version **1.6.2**
 
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/ogarza/omarchyweathereffects.git --enable
+omarchy plugin add https://github.com/ogarza/ogarza.plugins.weather.git --enable
 ```
 
-That clones into `~/.config/omarchy/plugins/ogarza.weather/` and puts the widget on the bar (right section by default). To enable later:
+That clones into `~/.config/omarchy/plugins/ogarza.plugins.weather/` and puts the widget on the bar (right section by default). To enable later:
 
 ```bash
-omarchy plugin enable ogarza.weather --section right
+omarchy plugin enable ogarza.plugins.weather --section right
 ```
 
 Update:
 
 ```bash
-omarchy plugin update ogarza.weather
+omarchy plugin update ogarza.plugins.weather
 ```
+
+Generated Hyprland shaders stay under `~/.local/state/ogarza.weather/`. Overlay `.qsb` files ship in `shaders/` so the painted effects work without extra packages. The panel warns if those compiled shaders are missing.
+
+To rebuild overlay shaders after editing a `.frag`, or if the panel says they are missing, install Qt Shader Baker. Omarchy does not ship it:
+
+```bash
+omarchy pkg add qt6-shadertools
+```
+
+Then reopen the weather panel, or run `omarchy restart shell`. `qsb` lives at `/usr/lib/qt6/bin/qsb` (not on PATH).
 
 ### Uninstall
 
 If the overlay or Hyprland distortion was on when you removed the plugin, Hyprland can keep the last screen shader until you clear it. Settings live in the Omarchy shell plugin entry (not this repo). Generated files sit under the state directory.
 
 ```bash
-omarchy plugin remove ogarza.weather
+omarchy plugin remove ogarza.plugins.weather
 
 rm -rf "${XDG_STATE_HOME:-$HOME/.local/state}/ogarza.weather"
 
@@ -37,9 +47,15 @@ hyprctl eval 'hl.config({ debug = { damage_tracking = 2 } })'
 
 The last two lines drop a leftover Hyprland shader and put damage tracking back to the usual full-monitor mode. Skip them if another plugin (Phosphor, for example) is supposed to own that slot.
 
+If you installed Qt Shader Baker for this plugin and nothing else needs it, you can drop it:
+
+```bash
+omarchy pkg drop qt6-shadertools
+```
+
 ## Usage
 
-- **Left-click** the bar icon to open the panel (modes and quality on the left, sliders on the right).
+- **Left-click** the bar sparkle to open the panel (modes and quality on the left, sliders on the right). The mark is a creation sparkle so it is not the stock weather pill.
 - **Right-click** to turn the overlay on or off.
 
 **Quality** (Low, Medium, High, Extreme) trades sharpness for cost. High is the default. The overlay still renders at 33% / 50% / 75% / 100% of native pixels. Rain and Stormy drop work no longer drops as far: Low uses the old Medium layers, Medium matches High, Extreme still adds another drop pass. If the desktop feels heavy, drop quality first.
@@ -110,10 +126,10 @@ Shared shaders share sliders: changing rain density from Drizzle also changes st
 
 ## IPC
 
-Quickshell exposes these under `ogarza.weather`. From a terminal:
+Quickshell exposes these under `ogarza.plugins.weather`. From a terminal:
 
 ```bash
-omarchy-shell ogarza.weather <command> [args]
+omarchy-shell ogarza.plugins.weather <command> [args]
 ```
 
 | Command | What it does |
@@ -136,17 +152,17 @@ omarchy-shell ogarza.weather <command> [args]
 Examples:
 
 ```bash
-omarchy-shell ogarza.weather power toggle
-omarchy-shell ogarza.weather mode stormy
-omarchy-shell ogarza.weather track snow
-omarchy-shell ogarza.weather layer a rain
-omarchy-shell ogarza.weather param rain refract 0
-omarchy-shell ogarza.weather param sunny temperature 90F
-omarchy-shell ogarza.weather reset
-omarchy-shell ogarza.weather preview rain
-omarchy-shell ogarza.weather quality high
-omarchy-shell ogarza.weather hypr off
-omarchy-shell ogarza.weather overlay
+omarchy-shell ogarza.plugins.weather power toggle
+omarchy-shell ogarza.plugins.weather mode stormy
+omarchy-shell ogarza.plugins.weather track snow
+omarchy-shell ogarza.plugins.weather layer a rain
+omarchy-shell ogarza.plugins.weather param rain refract 0
+omarchy-shell ogarza.plugins.weather param sunny temperature 90F
+omarchy-shell ogarza.plugins.weather reset
+omarchy-shell ogarza.plugins.weather preview rain
+omarchy-shell ogarza.plugins.weather quality high
+omarchy-shell ogarza.plugins.weather hypr off
+omarchy-shell ogarza.plugins.weather overlay
 ```
 
 IPC `toggle` is the panel. `power` is the overlay.
@@ -175,11 +191,17 @@ Snow, fog, rainbow, and lightning stay on the overlay. When Hyprland is already 
 - A GPU. Mixes use a few fullscreen passes; Refract and Haze add a Hyprland pass on the whole monitor. Use Quality if it feels heavy.
 - Omarchy with `omarchy-shell` (Quickshell) and Hyprland
 - `curl` for Follow and Exclusive
-- Qt 6 `qsb` at `/usr/lib/qt6/bin/qsb` (overlay shaders compile on load when needed)
+- Overlay `.qsb` files in `shaders/` (shipped). To rebuild after editing a `.frag`, or if the panel says they are missing:
+
+```bash
+omarchy pkg add qt6-shadertools
+```
+
+Then reopen the panel. `qsb` is at `/usr/lib/qt6/bin/qsb` (not on PATH).
 
 ## Shaders
 
-Overlay sources are in `shaders/` (`rain.frag`, `snow.frag`, `fog.frag`, `sunny.frag`, `stormy.frag`, `fire.frag`, `rainbow.frag`). The Hyprland shader is generated by `HyprShader.js`. Compiled `.qsb` files stay local and are rebuilt when you edit a `.frag`.
+Overlay sources are in `shaders/` (`rain.frag`, `snow.frag`, `fog.frag`, `sunny.frag`, `stormy.frag`, `fire.frag`, `rainbow.frag`) with matching committed `.frag.qsb` packs (GLSL / HLSL / MSL, not GPU-vendor binaries). The Hyprland shader is generated by `HyprShader.js`. After you edit a `.frag`, rebuild with `qsb` (or reopen the panel so `scanShaders` does it) and keep the `.qsb` in git.
 
 ## Changelog
 

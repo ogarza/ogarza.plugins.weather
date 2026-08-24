@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.2
+
+- Plugin id is `ogarza.plugins.weather` (bar slot, IPC, `omarchy plugin enable`).
+- Bar icon is the creation sparkle (not the C++ glyph, not a forecast icon).
+- Overlay `.frag.qsb` files ship in `shaders/` so the painted overlay works without `qt6-shadertools`. The panel warns only if those compiled shaders are missing. Rebuild with `qsb` after editing a `.frag`.
+
 ## 1.6.1
 
 - Rainbow **After sunset** (off by default) keeps the bow at night. **Night glow** cools it toward ice-blue; **Night strength** sets night opacity. Arc is placed in screen-height space so it lands on-screen at common aspects.
