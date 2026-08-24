@@ -2,8 +2,8 @@
 
 ## 1.6.4
 
-- Optional end-user agent skill at `skill/ogarza-weather-user/` (IPC: modes, Custom three-layer, Hyprland distortion toggle). README install and uninstall are both optional.
-- Standardized IPC: optional values trim whitespace. Blank (`""` or spaces) prints the current setting and does not set; same rule for power, mode, track, layer, param, quality, and hypr.
+- Optional end-user agent skill at `skill/ogarza-weather-user/` (IPC: modes, Custom three-layer, Hyprland distortion, Add Rainbow per condition). README install and uninstall are both optional.
+- Standardized IPC: optional values trim whitespace. Blank (`""` or spaces) prints the current setting and does not set; same rule for power, mode, track, layer, param, quality, and hypr. `enableC` / `nightVisible` accept `on`/`off`/`toggle` (toggle uses the current value). Add Rainbow is `param sunshower enableC on` while already in that look.
 
 ## 1.6.3
 

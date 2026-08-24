@@ -161,7 +161,7 @@ omarchy-shell ogarza.plugins.weather <command> [args]
 | `mode` `[id]` | Set the mode (`rain`, `follow`, `custom`, …) |
 | `track` / `exclusive` `[preset]` | Exclusive **Track only** (`rain`, `stormy`, …) |
 | `layer` `<a\|b\|c>` `[shader]` | Custom layer shader (`none` turns a slot off) |
-| `param` `<preset>` `<key>` `[value]` | Read or set a slider. Value is the stored number, or a percent (`80%`). `enableC` and `nightVisible` are `on`/`off`. Temperature is °C, or °F with an `F` suffix |
+| `param` `<preset>` `<key>` `[value]` | Read or set a slider. Value is the stored number, or a percent (`80%`). **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition (`sunshower`, `rain`, …), not on `follow`. `nightVisible` is `on`/`off`/`toggle`. Temperature is °C, or °F with an `F` suffix |
 | `reset` | Restore every mode’s sliders (does not change mode, quality, or Hyprland distortion) |
 | `refresh` | Fetch Follow / Exclusive weather again |
 | `preview <preset>` | Switch to Follow and fade to that look |
@@ -184,6 +184,8 @@ omarchy-shell ogarza.plugins.weather layer a ""
 omarchy-shell ogarza.plugins.weather param rain refract 0
 omarchy-shell ogarza.plugins.weather param rain refract ""
 omarchy-shell ogarza.plugins.weather param sunny temperature 90F
+omarchy-shell ogarza.plugins.weather param sunshower enableC on
+omarchy-shell ogarza.plugins.weather param sunshower enableC ""
 omarchy-shell ogarza.plugins.weather reset
 omarchy-shell ogarza.plugins.weather preview rain
 omarchy-shell ogarza.plugins.weather quality high

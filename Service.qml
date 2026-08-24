@@ -411,7 +411,10 @@ Item {
   function parseIpcParam(preset, key, raw) {
     var text = root.ipcTrim(raw)
     var k = root.ipcTrim(key)
-    if (Model.isCheckParam(k)) return root.parseOnOffToggle(text, false) ? 1 : 0
+    if (Model.isCheckParam(k)) {
+      var cur = Model.paramValue(root.params, preset, k, 0) >= 0.5
+      return root.parseOnOffToggle(text, cur) ? 1 : 0
+    }
     var lower = text.toLowerCase()
     if (k === "temperature") {
       var imperial = /f$/.test(lower)

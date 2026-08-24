@@ -1,6 +1,6 @@
 ---
 name: ogarza-weather-user
-description: Control the ogarza.plugins.weather Omarchy overlay with IPC (rain, snow, fog, sun, storm, fire, rainbow, Custom three-layer stack, Follow, Hyprland refraction/haze). Use when the user wants to change the look, make it rain harder, stack custom layers, turn distortion on or off, or switch modes — not when editing plugin source.
+description: Control the ogarza.plugins.weather Omarchy overlay with IPC (rain, snow, fog, sun, storm, fire, rainbow, Add Rainbow on a condition such as sun shower, Custom three-layer stack, Follow, Hyprland refraction/haze). Use when the user wants to change the look, make it rain harder, add a rainbow to sun shower, stack custom layers, turn distortion on or off, or switch modes — not when editing plugin source.
 ---
 
 # Omarchy weather overlay (end user)
@@ -35,7 +35,7 @@ omarchy-shell ogarza.plugins.weather power on
 | `mode` `[id]` | `none`, `rain`, `snow`, `fog`, `sunny`, `partly`, `overcast`, `sunshower`, `moonlit`, `drizzle`, `squall`, `wintry`, `stormy`, `follow`, `exclusive`, `fire`, `rainbow`, `custom` |
 | `track` `[preset]` | Exclusive track only (not fire/rainbow/custom) |
 | `layer` `<a\|b\|c>` `[shader]` | Custom mode only. Slot shader: `rain`, `snow`, `fog`, `sunny`, `stormy`, `fire`, `rainbow`, or `none` |
-| `param` `<preset>` `<key>` `[value]` | Slider. `%` ok. `enableC` / `nightVisible`: `on`/`off`. Temperature: °C or `90F` |
+| `param` `<preset>` `<key>` `[value]` | Slider. `%` ok. **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition id (`sunshower`, `rain`, …). `nightVisible` same. Temperature: °C or `90F` |
 | `quality` `[low\|medium\|high\|extreme]` | Cost vs sharpness |
 | `hypr` `[on\|off\|toggle]` | Panel **Hyprland distortion**. Global on/off for desktop warp. Default on. Read with `hypr ""` |
 | `reset` | Default sliders (not mode/quality/hypr) |
@@ -57,7 +57,22 @@ Shader presets (`param rain density`, not the mix id):
 | `fire` | `density`, `speed`, `scale`, `glow`, `haze` |
 | `rainbow` | `glow`, `density`, `scale` (0–4), `azimuth`, `lightning` (−2–2 height), `distance`, `speed`, `nightVisible`, `nightTint`, `nightStrength` |
 
-Unless noted, sliders are 0–2. Mixes also take `strengthA` / `strengthB` / `strengthC` (0–1) and `enableC` (`on`/`off`) on the **mode** id (`param drizzle strengthB`). Singles use `param rain strength`. Custom uses `param custom strengthA` / `strengthB` / `strengthC` (0–1); look knobs stay on the shader (`param rain density`).
+Unless noted, sliders are 0–2. Mixes also take `strengthA` / `strengthB` / `strengthC` (0–1) on the **condition** id (`param drizzle strengthB`). Singles use `param rain strength`. Custom uses `param custom strengthA` / `strengthB` / `strengthC` (0–1); look knobs stay on the shader (`param rain density`).
+
+## Add Rainbow
+
+Panel **Add Rainbow** is `enableC` on that condition (not on `follow` / `exclusive` / `rainbow` / `custom`). Off by default. Bow look is `param rainbow …`. Strength is `param <condition> strengthC`. Custom uses `layer c rainbow` instead.
+
+Already in Sun shower:
+
+```bash
+omarchy-shell ogarza.plugins.weather param sunshower enableC ""
+omarchy-shell ogarza.plugins.weather param sunshower enableC on
+omarchy-shell ogarza.plugins.weather param sunshower enableC toggle
+omarchy-shell ogarza.plugins.weather param sunshower enableC off
+```
+
+Follow with live sun shower: still `param sunshower enableC on` (leave `mode follow`). Same pattern for `rain`, `sunny`, `drizzle`, `stormy`, `fire`, and the other mixes.
 
 ## Hyprland distortion
 
@@ -92,6 +107,7 @@ omarchy-shell ogarza.plugins.weather power on
 ## Examples
 
 - Rain harder → read/set `param rain density`; `power on`.
+- Rainbow on Sun shower → `param sunshower enableC on` (or `toggle`). Follow: same, do not switch mode.
 - Stack rain, fog, and fire → Custom recipe above.
 - Turn off desktop warp → `hypr off`. Turn it back on → `hypr on`. Weaker warp with distortion still on → lower `param rain refract` / `param sunny haze`.
 - Follow the forecast → `mode follow`.
