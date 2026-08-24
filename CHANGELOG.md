@@ -3,7 +3,7 @@
 ## 1.6.2
 
 - Plugin id is `ogarza.plugins.weather` (bar slot, IPC, `omarchy plugin enable`).
-- Bar icon is the creation sparkle (not the C++ glyph, not a forecast icon).
+- Bar icon is now the creation sparkle.
 - Overlay `.frag.qsb` files ship in `shaders/` so the painted overlay works without `qt6-shadertools`. The panel warns only if those compiled shaders are missing. Rebuild with `qsb` after editing a `.frag`.
 
 ## 1.6.1
