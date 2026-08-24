@@ -224,7 +224,7 @@ Item {
   }
 
   function previewPreset(preset) {
-    var next = Model.normalizedMode(preset)
+    var next = Model.normalizedMode(root.ipcTrim(preset))
     if (next === "follow" || next === "exclusive" || next === "custom" || !Model.hasTweaks(next))
       return "unknown-preset"
     if (!root.active)
@@ -395,8 +395,12 @@ Item {
     shell.updateEntryInline(pluginId, settings)
   }
 
+  function ipcTrim(raw) {
+    return String(raw || "").replace(/^\s+|\s+$/g, "")
+  }
+
   function parseOnOffToggle(raw, current) {
-    var v = String(raw || "").replace(/^\s+|\s+$/g, "").toLowerCase()
+    var v = root.ipcTrim(raw).toLowerCase()
     if (!v) return current
     if (v === "toggle") return !current
     if (v === "off" || v === "0" || v === "false" || v === "no") return false
@@ -405,8 +409,8 @@ Item {
   }
 
   function parseIpcParam(preset, key, raw) {
-    var text = String(raw || "").replace(/^\s+|\s+$/g, "")
-    var k = String(key || "")
+    var text = root.ipcTrim(raw)
+    var k = root.ipcTrim(key)
     if (Model.isCheckParam(k)) return root.parseOnOffToggle(text, false) ? 1 : 0
     var lower = text.toLowerCase()
     if (k === "temperature") {
@@ -421,43 +425,61 @@ Item {
   }
 
   function ipcPower(raw) {
-    root.setActive(root.parseOnOffToggle(raw, root.active))
+    var v = root.ipcTrim(raw)
+    if (v) root.setActive(root.parseOnOffToggle(v, root.active))
     return root.active ? "on" : "off"
   }
 
   function ipcMode(raw) {
-    if (!String(raw || "").replace(/^\s+|\s+$/g, "")) return root.mode
-    root.setMode(raw)
+    var v = root.ipcTrim(raw)
+    if (!v) return root.mode
+    root.setMode(v)
     return root.mode
   }
 
   function ipcTrack(raw) {
-    if (!String(raw || "").replace(/^\s+|\s+$/g, "")) return root.exclusivePreset
-    root.setExclusivePreset(raw)
+    var v = root.ipcTrim(raw)
+    if (!v) return root.exclusivePreset
+    root.setExclusivePreset(v)
     return root.exclusivePreset
   }
 
+  function ipcQuality(raw) {
+    var v = root.ipcTrim(raw)
+    if (v) root.setQuality(v)
+    return root.quality
+  }
+
+  function ipcHypr(raw) {
+    var v = root.ipcTrim(raw)
+    if (v) root.setHyprEnabled(root.parseOnOffToggle(v, root.hyprEnabled))
+    return root.hyprEnabled ? "on" : "off"
+  }
+
   function ipcLayer(slotRaw, shader) {
-    var s = String(slotRaw || "").replace(/^\s+|\s+$/g, "").toLowerCase()
+    var s = root.ipcTrim(slotRaw).toLowerCase()
     var slot = 0
     if (s === "b" || s === "1") slot = 1
     else if (s === "c" || s === "2") slot = 2
     else if (s === "a" || s === "0" || s === "") slot = 0
     else return "unknown-layer"
     var current = slot === 2 ? root.customShaderC : (slot === 1 ? root.customShaderB : root.customShaderA)
-    if (!String(shader || "").replace(/^\s+|\s+$/g, "")) return current
-    root.setCustomShader(slot, shader)
+    var next = root.ipcTrim(shader)
+    if (!next) return current
+    root.setCustomShader(slot, next)
     return slot === 2 ? root.customShaderC : (slot === 1 ? root.customShaderB : root.customShaderA)
   }
 
   function ipcParam(preset, key, value) {
-    var mode = Model.normalizedMode(preset)
-    if (!preset || !Model.hasTweaks(mode)) return "unknown-preset"
-    var k = String(key || "")
+    var p = root.ipcTrim(preset)
+    var mode = Model.normalizedMode(p)
+    if (!p || !Model.hasTweaks(mode)) return "unknown-preset"
+    var k = root.ipcTrim(key)
     if (!k) return JSON.stringify(root.params[mode] || {})
-    if (!String(value || "").replace(/^\s+|\s+$/g, ""))
+    var v = root.ipcTrim(value)
+    if (!v)
       return String(Model.paramValue(root.params, mode, k, Model.isCheckParam(k) ? 0 : 1))
-    root.setParam(mode, k, root.parseIpcParam(mode, k, value), true)
+    root.setParam(mode, k, root.parseIpcParam(mode, k, v), true)
     return String(Model.paramValue(root.params, mode, k, Model.isCheckParam(k) ? 0 : 1))
   }
 

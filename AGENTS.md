@@ -38,4 +38,5 @@ omarchy-shell ogarza.plugins.weather hypr off
 ## Skills / rules
 
 - `.cursor/rules/` — conventions (always + shaders + docs).
-- `.cursor/skills/ogarza-weather/` — change workflow.
+- `.cursor/skills/ogarza-weather/` — change workflow (plugin source).
+- `skill/ogarza-weather-user/` — end-user IPC skill (install via README).

@@ -22,6 +22,25 @@ Update:
 omarchy plugin update ogarza.plugins.weather
 ```
 
+Optional — agent skill, so your default agent can change the overlay with IPC (e.g. “make it rain harder”). Skip this if you only use the panel.
+
+```bash
+src="$HOME/.config/omarchy/plugins/ogarza.plugins.weather/skill/ogarza-weather-user"
+for dir in ~/.agents/skills ~/.claude/skills ~/.codex/skills ~/.pi/agent/skills; do
+  mkdir -p "$dir"
+  ln -sfn "$src" "$dir/ogarza-weather-user"
+done
+```
+
+Restart the agent so it picks up the skill. The links follow plugin updates.
+
+Optional — drop the skill only (the plugin stays):
+
+```bash
+rm -f ~/.agents/skills/ogarza-weather-user ~/.claude/skills/ogarza-weather-user \
+  ~/.codex/skills/ogarza-weather-user ~/.pi/agent/skills/ogarza-weather-user
+```
+
 Generated Hyprland shaders stay under `~/.local/state/ogarza.plugins.weather/`. Overlay `.qsb` files ship in `shaders/` so the painted effects work without extra packages. The panel warns if those compiled shaders are missing.
 
 To rebuild overlay shaders after editing a `.frag`, or if the panel says they are missing, install Qt Shader Baker. Omarchy does not ship it:
@@ -46,6 +65,13 @@ hyprctl eval 'hl.config({ debug = { damage_tracking = 2 } })'
 ```
 
 The last two lines drop a leftover Hyprland shader and put damage tracking back to the usual full-monitor mode. Skip them if another plugin (Phosphor, for example) is supposed to own that slot.
+
+If you installed the optional agent skill, remove those links too:
+
+```bash
+rm -f ~/.agents/skills/ogarza-weather-user ~/.claude/skills/ogarza-weather-user \
+  ~/.codex/skills/ogarza-weather-user ~/.pi/agent/skills/ogarza-weather-user
+```
 
 If you installed Qt Shader Baker for this plugin and nothing else needs it, you can drop it:
 
@@ -138,31 +164,39 @@ omarchy-shell ogarza.plugins.weather <command> [args]
 | `open` / `show` | Open the panel |
 | `close` / `hide` | Close the panel |
 | `toggle` | Open or close the panel |
-| `power` / `active` `[on\|off\|toggle]` | Overlay on or off (same as right-click on the bar). No argument prints `on` or `off` |
-| `mode` `[id]` | Set the mode (`rain`, `follow`, `custom`, …). No argument prints the current id |
-| `track` / `exclusive` `[preset]` | Exclusive **Track only** (`rain`, `stormy`, …). No argument prints the current preset |
-| `layer` `<a\|b\|c>` `[shader]` | Custom layer shader (`none` turns a slot off). No shader prints the current pick |
+| `power` / `active` `[on\|off\|toggle]` | Overlay on or off (same as right-click on the bar) |
+| `mode` `[id]` | Set the mode (`rain`, `follow`, `custom`, …) |
+| `track` / `exclusive` `[preset]` | Exclusive **Track only** (`rain`, `stormy`, …) |
+| `layer` `<a\|b\|c>` `[shader]` | Custom layer shader (`none` turns a slot off) |
 | `param` `<preset>` `<key>` `[value]` | Read or set a slider. Value is the stored number, or a percent (`80%`). `enableC` and `nightVisible` are `on`/`off`. Temperature is °C, or °F with an `F` suffix |
 | `reset` | Restore every mode’s sliders (does not change mode, quality, or Hyprland distortion) |
 | `refresh` | Fetch Follow / Exclusive weather again |
 | `preview <preset>` | Switch to Follow and fade to that look |
-| `quality` `[level]` | Set `low`, `medium`, `high`, or `extreme`. No argument prints the current level |
-| `hypr` `[on\|off\|toggle]` | Hyprland distortion. No argument prints `on` or `off` |
+| `quality` `[level]` | Set `low`, `medium`, `high`, or `extreme` |
+| `hypr` `[on\|off\|toggle]` | Hyprland distortion |
 | `overlay` | Print compositor state (JSON) |
+
+IPC always needs the typed string arguments. Pass `""` (or any whitespace) for an optional value to print the current setting instead of changing it. Omitting the argument can fail at the call site.
 
 Examples:
 
 ```bash
 omarchy-shell ogarza.plugins.weather power toggle
+omarchy-shell ogarza.plugins.weather power ""
 omarchy-shell ogarza.plugins.weather mode stormy
+omarchy-shell ogarza.plugins.weather mode ""
 omarchy-shell ogarza.plugins.weather track snow
 omarchy-shell ogarza.plugins.weather layer a rain
+omarchy-shell ogarza.plugins.weather layer a ""
 omarchy-shell ogarza.plugins.weather param rain refract 0
+omarchy-shell ogarza.plugins.weather param rain refract ""
 omarchy-shell ogarza.plugins.weather param sunny temperature 90F
 omarchy-shell ogarza.plugins.weather reset
 omarchy-shell ogarza.plugins.weather preview rain
 omarchy-shell ogarza.plugins.weather quality high
+omarchy-shell ogarza.plugins.weather quality ""
 omarchy-shell ogarza.plugins.weather hypr off
+omarchy-shell ogarza.plugins.weather hypr ""
 omarchy-shell ogarza.plugins.weather overlay
 ```
 

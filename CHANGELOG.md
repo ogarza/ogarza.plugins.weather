@@ -8,6 +8,8 @@
 - Distortion on keeps one combined Hyprland shader (rain + haze). Unused rain or haze is 0; Fog and Snow stay applied. Rebuilds keep the drop clock so a fade does not jump. Rain and Stormy ease to 0 when you leave them (including Cloud/Fog). Clear `screen_shader` only when distortion turns off.
 - Rain **Darken** (default 100%) controls how much drops tint the glass.
 - Rain and Stormy **Scale** go to 200%. The old 100% size is now 50% (default stays that size).
+- IPC optional values trim whitespace. Blank (`""` or spaces) prints the current setting and does not set; same rule for power, mode, track, layer, param, quality, and hypr.
+- Optional end-user agent skill at `skill/ogarza-weather-user/` (IPC only, including Custom three-layer). README has install and uninstall; both are optional.
 
 ## 1.6.2
 

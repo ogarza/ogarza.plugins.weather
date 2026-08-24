@@ -53,14 +53,10 @@ BarWidget {
       return root.fx && root.fx.overlayDebugState ? root.fx.overlayDebugState() : "no-service"
     }
     function quality(level: string): string {
-      if (!root.fx || typeof root.fx.setQuality !== "function") return "no-service"
-      if (String(level || "")) root.fx.setQuality(level)
-      return root.fx.quality
+      return root.fx && root.fx.ipcQuality ? root.fx.ipcQuality(level) : "no-service"
     }
     function hypr(value: string): string {
-      if (!root.fx || typeof root.fx.setHyprEnabled !== "function") return "no-service"
-      root.fx.setHyprEnabled(root.fx.parseOnOffToggle(value, root.fx.hyprEnabled))
-      return root.fx.hyprEnabled ? "on" : "off"
+      return root.fx && root.fx.ipcHypr ? root.fx.ipcHypr(value) : "no-service"
     }
     function power(value: string): string {
       return root.fx && root.fx.ipcPower ? root.fx.ipcPower(value) : "no-service"
