@@ -1,6 +1,6 @@
 ---
 name: ogarza-weather-user
-description: Control the ogarza.plugins.weather Omarchy overlay with IPC. Combine looks with Custom (fire+clouds → fog+fire layers). Layer loudness is param custom strengthA/B/C for that slot, not param fire strength. Harder rain → density, beautiful → Add Rainbow. Not plugin source.
+description: Control the ogarza.plugins.weather Omarchy overlay with IPC. mode follow does not turn the overlay on — use power on after weather was off. Custom for fire+clouds; layer loudness is param custom strengthA/B/C. Not plugin source.
 ---
 
 # Omarchy weather overlay (end user)
@@ -28,13 +28,14 @@ omarchy-shell ogarza.plugins.weather power on
 
 5. Two or more looks at once (fire and clouds, rain and fire, …) if it is not a named mix → **Custom**. Clouds = `fog`. See Custom below. “Make the fire less strong” then → that **slot’s** `param custom strengthA|B|C`, not `param fire strength`.
 6. `mode rain` only if they want that as the mode. Rain mixes share `param rain …`.
-7. Plugin source or shaders: out of scope.
+7. **Power vs mode:** turning weather off is `power off`. Follow / Exclusive / a look they want to *see* also needs `power on`. `mode follow` alone leaves the overlay off.
+8. Plugin source or shaders: out of scope.
 
 ## Commands
 
 | Command | Use |
 |---------|-----|
-| `power` `[on\|off\|toggle]` | Overlay on/off |
+| `power` `[on\|off\|toggle]` | Overlay on/off. **Independent of mode.** `mode follow` does not turn it on. After they asked to turn weather off, any “show it again” / Follow / rain / Custom needs `power on` |
 | `mode` `[id]` | `none`, `rain`, `snow`, `fog`, `sunny`, `partly`, `overcast`, `sunshower`, `moonlit`, `drizzle`, `squall`, `wintry`, `stormy`, `follow`, `exclusive`, `fire`, `rainbow`, `custom` |
 | `track` `[preset]` | Exclusive track only (not fire/rainbow/custom) |
 | `layer` `<a\|b\|c>` `[shader]` | Custom mode only. Slot shader: `rain`, `snow`, `fog`, `sunny`, `stormy`, `fire`, `rainbow`, or `none` |
@@ -148,5 +149,10 @@ If fire is on A, use `strengthA`. Do not set `param fire strength` for this.
 - “Fire and clouds” / fire + fog → Custom: `layer a fog`, `layer b fire`, `layer c none`. Then weaker fire → `param custom strengthB` (the fire slot), not `param fire strength`.
 - Stack rain, fog, and fire → Custom, three layers.
 - Turn off desktop warp → `hypr off`. Weaker warp → lower `param rain refract` / `param sunny haze`.
-- Follow the forecast → `mode follow`.
+- Follow the forecast → `mode follow` **and** `power on` (mode does not enable the overlay). After they turned weather off, both:
+
+```bash
+omarchy-shell ogarza.plugins.weather mode follow
+omarchy-shell ogarza.plugins.weather power on
+```
 - Overlay off → `power off`.

@@ -157,8 +157,8 @@ omarchy-shell ogarza.plugins.weather <command> [args]
 | `open` / `show` | Open the panel |
 | `close` / `hide` | Close the panel |
 | `toggle` | Open or close the panel |
-| `power` / `active` `[on\|off\|toggle]` | Overlay on or off (same as right-click on the bar) |
-| `mode` `[id]` | Set the mode (`rain`, `follow`, `custom`, …) |
+| `power` / `active` `[on\|off\|toggle]` | Overlay on or off (same as right-click on the bar). Independent of mode — `mode follow` does not turn the overlay on |
+| `mode` `[id]` | Set the mode (`rain`, `follow`, `custom`, …). Does not change power |
 | `track` / `exclusive` `[preset]` | Exclusive **Track only** (`rain`, `stormy`, …) |
 | `layer` `<a\|b\|c>` `[shader]` | Custom layer shader (`none` turns a slot off) |
 | `param` `<preset>` `<key>` `[value]` | Read or set a slider. Value is the stored number, or a percent (`80%`). **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition (`sunshower`, `rain`, …), not on `follow`. `nightVisible` is `on`/`off`/`toggle`. Temperature is °C, or °F with an `F` suffix |
