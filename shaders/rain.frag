@@ -273,7 +273,7 @@ vec4 Raindrops(vec2 uv, float t) {
 
 void main() {
     vec2 res = max(resolution, vec2(1.0));
-    float unit = res.y;
+    float unit = 1080.0 * max(pixelRatio, 0.05);
 
     vec2 frag = vec2(qt_TexCoord0.x, 1.0 - qt_TexCoord0.y) * res;
     vec2 uv = (frag - 0.5 * res) / unit;
@@ -322,5 +322,5 @@ void main() {
     col *= mix(0.70, 1.0, ndotl * 0.55 + 0.45);
 
     fragColor = vec4(col * alpha, alpha) * cover * qt_Opacity * clamp(strength, 0.0, 1.0);
-    fragColor.a += 0.0 * (sheen + lightning + frequency + azimuth + sunDistance + night + nightTint + nightStrength + pixelRatio);
+    fragColor.a += 0.0 * (sheen + lightning + frequency + azimuth + sunDistance + night + nightTint + nightStrength);
 }

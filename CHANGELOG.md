@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.3
+
+- Rain and Stormy drops keep their size when Hyprland distortion turns off or you leave those modes.
+
 ## 1.6.2
 
 - Plugin id is `ogarza.plugins.weather` (bar slot, IPC, `omarchy plugin enable`). State dir is `~/.local/state/ogarza.plugins.weather/`.

@@ -81,10 +81,24 @@ Item {
   readonly property bool overlayVisible: root.overlayWanted
     || (overlayFade.running && (Model.isVisualPreset(root.overlayFromPreset) || Model.isVisualPreset(root.overlayToPreset)))
 
-  readonly property string hyprKind: Model.screenShaderKind(
-    root.overlayToPreset, root.params, root.customShaderA, root.customShaderB, root.customShaderC, root.outdoorTempC)
+  readonly property string hyprVisual: {
+    var to = root.overlayToPreset
+    var from = root.overlayFromPreset
+    if (root.overlayMix < 0.999 && from && from !== to) {
+      var fromKind = Model.screenShaderKind(
+        from, root.params, root.customShaderA, root.customShaderB, root.customShaderC, root.outdoorTempC)
+      var toKind = Model.screenShaderKind(
+        to, root.params, root.customShaderA, root.customShaderB, root.customShaderC, root.outdoorTempC)
+      if (fromKind.indexOf("rain") !== -1 && toKind.indexOf("rain") === -1)
+        return from
+    }
+    return to
+  }
 
-  readonly property bool needsScreenShader: root.persistLoaded && root.hyprEnabled && root.overlayWanted && root.hyprKind !== ""
+  readonly property string hyprKind: Model.screenShaderKind(
+    root.hyprVisual, root.params, root.customShaderA, root.customShaderB, root.customShaderC, root.outdoorTempC)
+
+  readonly property bool needsScreenShader: root.persistLoaded && root.hyprEnabled && root.overlayVisible && root.hyprKind !== ""
 
   readonly property bool hyprRainLive: root.needsScreenShader && root.hyprKind.indexOf("rain") !== -1
 
@@ -167,9 +181,9 @@ Item {
       return
     }
     overlayFade.stop()
+    root.overlayMix = 0
     root.overlayFromPreset = from
     root.overlayToPreset = next
-    root.overlayMix = 0
     root.applyOverlayFadeDuration()
     overlayFade.from = 0
     overlayFade.to = 1
@@ -658,7 +672,7 @@ Item {
 
   function hyprInput() {
     return Model.hyprShaderInput(
-      root.overlayToPreset,
+      root.hyprVisual,
       root.params,
       root.quality,
       root.customShaderA,
@@ -723,6 +737,7 @@ Item {
   onModeChanged: root.syncOverlayLayers()
   onOverlayWantedChanged: root.syncOverlayLayers()
   onNeedsScreenShaderChanged: root.scheduleHyprSync()
+  onHyprKindChanged: root.scheduleHyprSync()
   onOverlayToPresetChanged: root.scheduleHyprSync()
   onParamsChanged: root.scheduleHyprSync()
   onQualityChanged: root.scheduleHyprSync()
@@ -775,7 +790,7 @@ Item {
     property real pixelRatio: {
       var scr = screenInfo
       var dpr = scr && scr.devicePixelRatio ? Number(scr.devicePixelRatio) : 1.0
-      return Math.max(1.0, dpr * root.qualityScale)
+      return Math.max(0.05, dpr * root.qualityScale)
     }
     property real strength: Model.slotStrength(root.params, visual, slot, root.customShaderA, root.customShaderB, root.customShaderC)
     property real density: {

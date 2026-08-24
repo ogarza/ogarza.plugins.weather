@@ -414,7 +414,7 @@ float returnStrokes(float phase, float window, float decay, float doubleBlink) {
 
 void main() {
     vec2 res = max(resolution, vec2(1.0));
-    float unit = res.y;
+    float unit = 1080.0 * max(pixelRatio, 0.05);
     float spd = max(speed, 0.0);
 
     vec2 screen = vec2(qt_TexCoord0.x, 1.0 - qt_TexCoord0.y);
@@ -501,5 +501,5 @@ void main() {
 
     vec3 premul = washCol * wash + col * rainAlpha + boltCol * flashAlpha + sheetCol * sheet;
     fragColor = vec4(premul, alpha) * qt_Opacity * clamp(strength, 0.0, 1.0);
-    fragColor.a += 0.0 * (sunDistance + night + nightTint + nightStrength + pixelRatio);
+    fragColor.a += 0.0 * (sunDistance + night + nightTint + nightStrength);
 }
