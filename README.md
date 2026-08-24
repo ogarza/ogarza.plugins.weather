@@ -22,7 +22,7 @@ Update:
 omarchy plugin update ogarza.plugins.weather
 ```
 
-Generated Hyprland shaders stay under `~/.local/state/ogarza.weather/`. Overlay `.qsb` files ship in `shaders/` so the painted effects work without extra packages. The panel warns if those compiled shaders are missing.
+Generated Hyprland shaders stay under `~/.local/state/ogarza.plugins.weather/`. Overlay `.qsb` files ship in `shaders/` so the painted effects work without extra packages. The panel warns if those compiled shaders are missing.
 
 To rebuild overlay shaders after editing a `.frag`, or if the panel says they are missing, install Qt Shader Baker. Omarchy does not ship it:
 
@@ -39,7 +39,7 @@ If the overlay or Hyprland distortion was on when you removed the plugin, Hyprla
 ```bash
 omarchy plugin remove ogarza.plugins.weather
 
-rm -rf "${XDG_STATE_HOME:-$HOME/.local/state}/ogarza.weather"
+rm -rf "${XDG_STATE_HOME:-$HOME/.local/state}/ogarza.plugins.weather"
 
 hyprctl eval 'hl.config({ decoration = { screen_shader = "" } })'
 hyprctl eval 'hl.config({ debug = { damage_tracking = 2 } })'
@@ -173,7 +173,7 @@ With **Hyprland distortion** on, Rain or Stormy with **Refract** above 0, and Su
 
 On load and when the panel opens, this plugin scans the other folders under `~/.config/omarchy/plugins` for `.qml` / `.js` that mention `screen_shader`. It skips its own folder. If it finds a sibling, the panel shows a warning with that plugin’s name from `manifest.json`. It does not disable the other plugin or fight for the slot — it is only a heads-up that refraction or haze may disappear if the other shader applied last.
 
-The generated file lives in `${XDG_STATE_HOME:-~/.local/state}/ogarza.weather/current.frag`. Nothing is written to `~/.config/hypr/`.
+The generated file lives in `${XDG_STATE_HOME:-~/.local/state}/ogarza.plugins.weather/current.frag`. Nothing is written to `~/.config/hypr/`.
 
 While refraction or haze is on, the monitor redraws every frame so the warp can animate. Clicks through a warped drop or the haze band land a little off from what you see.
 

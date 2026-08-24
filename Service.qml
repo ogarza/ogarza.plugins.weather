@@ -17,7 +17,7 @@ Item {
 
   readonly property string pluginId: Model.pluginId
   readonly property string home: Quickshell.env("HOME")
-  readonly property string hyprStateRoot: (Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/ogarza.weather"
+  readonly property string hyprStateRoot: (Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/" + pluginId
   readonly property string hyprShaderPath: hyprStateRoot + "/current.frag"
   property bool active: false
   property string mode: "none"
