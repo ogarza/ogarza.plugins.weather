@@ -1,8 +1,12 @@
 # Changelog
 
+## 1.6.5
+
+- End-user agent skill updated so weaker models hit the right IPC: map vague looks (harder rain → density, beautiful → Add Rainbow), keep factory defaults instead of maxing scale, use Custom for fire+clouds, weaken a stacked fire with `param custom strengthA|B|C`, and pair `mode follow` with `power on` after the overlay was off.
+
 ## 1.6.4
 
-- Optional end-user agent skill at `skill/ogarza-weather-user/` (IPC: modes, Custom, Hyprland distortion, Add Rainbow). `mode follow` does not turn the overlay on — pair with `power on` after weather was off. Fire+clouds is Custom; weaker fire is `param custom strengthA|B|C`. README install and uninstall are both optional.
+- Optional end-user agent skill at `skill/ogarza-weather-user/` (IPC: modes, Custom, Hyprland distortion, Add Rainbow). README install and uninstall are both optional.
 - Standardized IPC: optional values trim whitespace. Blank (`""` or spaces) prints the current setting and does not set; same rule for power, mode, track, layer, param, quality, and hypr. `enableC` / `nightVisible` accept `on`/`off`/`toggle` (toggle uses the current value). Add Rainbow is `param sunshower enableC on` while already in that look.
 
 ## 1.6.3

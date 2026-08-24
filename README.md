@@ -2,7 +2,7 @@
 
 Fullscreen weather on your Omarchy desktop: rain on glass, snow, clouds, sun, storms, fire, rainbows, and mixes. Most of it is a transparent overlay. Rain refraction and heat haze go through Hyprland so they warp the real desktop, not a painted copy.
 
-Plugin id: `ogarza.plugins.weather` · version **1.6.4**
+Plugin id: `ogarza.plugins.weather` · version **1.6.5**
 
 ## Install
 
