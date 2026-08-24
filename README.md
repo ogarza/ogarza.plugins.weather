@@ -34,13 +34,6 @@ done
 
 Restart the agent so it picks up the skill. The links follow plugin updates.
 
-Optional — drop the skill only (the plugin stays):
-
-```bash
-rm -f ~/.agents/skills/ogarza-weather-user ~/.claude/skills/ogarza-weather-user \
-  ~/.codex/skills/ogarza-weather-user ~/.pi/agent/skills/ogarza-weather-user
-```
-
 Generated Hyprland shaders stay under `~/.local/state/ogarza.plugins.weather/`. Overlay `.qsb` files ship in `shaders/` so the painted effects work without extra packages. The panel warns if those compiled shaders are missing.
 
 To rebuild overlay shaders after editing a `.frag`, or if the panel says they are missing, install Qt Shader Baker. Omarchy does not ship it:
@@ -81,7 +74,7 @@ omarchy pkg drop qt6-shadertools
 
 ## Usage
 
-- **Left-click** the bar sparkle to open the panel (modes and quality on the left, sliders on the right). The mark is a creation sparkle so it is not the stock weather pill.
+- **Left-click** the bar sparkle to open the panel (modes and quality on the left, sliders on the right).
 - **Right-click** to turn the overlay on or off.
 
 **Quality** (Low, Medium, High, Extreme) trades sharpness for cost. High is the default. The overlay still renders at 33% / 50% / 75% / 100% of native pixels. Rain and Stormy drop work no longer drops as far: Low uses the old Medium layers, Medium matches High, Extreme still adds another drop pass. If the desktop feels heavy, drop quality first.
@@ -95,7 +88,7 @@ Mode changes in the panel fade over about two seconds. Follow fades forecast cha
 | Mode | Effect |
 |------|--------|
 | None | Overlay off until you pick an effect (default) |
-| Rain | Glass beads and trails. Hyprland **Refract** warps the desktop (painted rain is skipped while that is live). Refract 0 is painted only. Clicks through a warped drop land a little off |
+| Rain | Glass beads and trails. Hyprland **Refract** warps the desktop (painted rain is skipped while that is live). Refract 0 is painted only. |
 | Snow | Falling flakes (overlay only; lower Quality uses fewer layers) |
 | Cloud/Fog | Soft clouds, denser high up; top and bottom faded so the desktop stays readable |
 | Sunny | Warm glow by day. Over civil twilight (sun 0° to −6°, a few minutes) it eases to cool moonlight. **Haze** warps the desktop only when outdoor temperature is at or above **On above** (default 90°F / 32.2°C) |
@@ -106,7 +99,7 @@ Mode changes in the panel fade over about two seconds. Follow fades forecast cha
 | Drizzle | Light rain through clouds (same refraction rules as Rain) |
 | Snow squall | Snow through clouds (no desktop warp) |
 | Wintry mix | Rain and snow (rain can still refract) |
-| Stormy | Diagonal rain, Gloom wash, overlay lightning (no desktop shake). **Angle** is drop lean. Refraction like Rain |
+| Stormy | Diagonal rain, Gloom wash, overlay lightning. **Angle** is drop lean. Refraction like Rain |
 | Follow | Live forecast for your Omarchy location. Never Fire, Rainbow, or Custom. Clear = Sunny; thunder = Stormy; partly cloudy → moonlit after sunset. Fades in about ten seconds |
 | Exclusive | Same fetch as Follow; overlay only when weather matches **Track only**. The panel previews until you close it |
 | Fire | Ground fire (manual only). **Haze** is not gated by temperature |
@@ -123,7 +116,7 @@ Follow never picks fire, rainbow, or custom. Clear sky is sunny. Partly cloudy b
 
 ### Tweaks
 
-Columns to the right of the mode list show a short description and the sliders for that look (or the Follow / Exclusive condition). Overlay uniforms update while you drag. Hyprland distortion rebuilds when you release the slider. Values persist in shell config.
+Columns to the right of the mode list show a short description and the sliders for that look. Overlay uniforms update while you drag. Hyprland distortion rebuilds when you release the slider. Values persist in shell config.
 
 - **Strength** — overall intensity on single-shader modes
 - **Clouds / Sun / Moon / Rain / Snow / Haze / Layer A / B / C** — mix layer strengths
@@ -131,8 +124,8 @@ Columns to the right of the mode list show a short description and the sliders f
 - **Density** / **Speed** — coverage and motion
 - **Scale** / **Size** — drop, flake, flame, cloud, or rainbow size. Rain and Stormy Scale go to 200%; default 100% is the old max
 - **Sheen** — glints on rain and storm drops
-- **Darken** — how much raindrops tint the glass (painted overlay and Hyprland)
-- **Refract** — warp the real desktop through rain or storm drops (Hyprland). Default 100%. 0 keeps the painted overlay
+- **Darken** — how much raindrops tint the glass.
+- **Refract** — warp the real desktop through rain or storm drops. Default 100%. 0 keeps the painted overlay
 - **Haze** — heat shimmer on Sunny and Fire
 - **On above** — outdoor temperature where sunny haze turns on (default 90°F / 32.2°C). Fire haze ignores this
 - **Brightness** — snow flakes
