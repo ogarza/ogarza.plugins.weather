@@ -2,10 +2,9 @@
 
 ## 1.7.0
 
-- **Heat haze removed.** Distortion is rain and storm **Refract** only (Hyprland on Whole screen, `wallpaper_warp.frag` on Wallpaper). Sunny/Fire Haze and On above are gone.
-- **Distortion** (panel switch, IPC `distortion`; `hypr` still works): rain and storm **Refract** on Whole screen (Hyprland `screen_shader`) or Wallpaper (`wallpaper_warp.frag`).
-- **Settings** (panel row, was None): wider panel. Each knob has chips on the left and a what/cost note on the right. **Resolution** is render scale. **All looks** sets Effect detail for every shader; Rain, Stormy, Fire, Fog, Snow, Sunny, and Rainbow have their own Low–Extreme. IPC `detail high` still sets all; `detail rain low` sets one. Old **Quality** IPC still sets Resolution + all detail (`extreme` → Native + Extreme). Overlay off is power or `mode none`.
-- **Wallpaper only** (panel + `target wallpaper`): overlay sits below windows. Hyprland `screen_shader` is cleared immediately. Rain refraction runs in `wallpaper_warp.frag`. Design notes: `docs/wallpaper-target.md`.
+- **Settings** (was None): does not change the overlay. Wider panel with chips on the left and a what/cost note on the right. **Resolution** is render scale. **All looks** plus per-shader Effect detail (Rain, Stormy, Fire, Fog, Snow, Sunny, Rainbow). IPC `detail high` sets all; `detail rain low` sets one. **Quality** still sets Resolution + all detail (`extreme` → Native + Extreme). Overlay off is power or `mode none`.
+- **Wallpaper only** (`target wallpaper`): overlay on the wallpaper layer. Hyprland `screen_shader` is cleared immediately. Rain refraction is `wallpaper_warp.frag`. Notes: `docs/wallpaper-target.md`.
+- **Distortion** (panel + IPC `distortion`; `hypr` still works): rain and storm **Refract** only. Heat haze, Sunny/Fire Haze, and On above are gone.
 
 ## 1.6.5
 
