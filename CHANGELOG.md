@@ -3,6 +3,7 @@
 ## 1.9.0
 
 - **Pollen** and **Motes** are CPU flocks (one overlay sprite per seed, not a fullscreen gather loop). Density 0–200% is about 4–192 specks. Pollen has **Wind** (`sheen`, 0 = up) and **Tumble**. Motes keep the old home + sin/cos wander and per-speck glow pulse.
+- Settings Effect detail: Motes is wander grid (sprites, not a hash-grid). **Pollen has no Effect detail row** (sprite `quality` is unused). Wallpaper warp follows Rain or Stormy detail — no extra row. IPC `detail pollen …` returns `unknown-shader`. `overlay` JSON includes `target` and `wallpaperWarp`.
 - Motes/Pollen panel sliders apply when you release the bar (rain and other GPU looks still update while dragging).
 - Speck **Size** is about one third of the first sprite pass.
 

@@ -79,9 +79,9 @@ omarchy pkg drop qt6-shadertools
 
 **Settings → Resolution** (Low, Medium, High, Native) is how large the overlay is drawn: 33% / 50% / 75% / 100% of native pixels. Native skips the extra blit. High is the default. Drop this first if the desktop feels heavy.
 
-**Settings → Effect detail** is per shader (Rain, Stormy, Fire, Cloud/Fog, Snow, Sunny/Moon, Motes, Mist, Stars, Pollen, Rainbow), Low through Extreme. **All looks** sets every shader at once. Mixes use each layer’s shader. High is the default. Rain/Stormy are the most expensive (especially with Distortion); Rainbow, Motes, Stars, and Pollen are the cheapest.
+**Settings → Effect detail** is per shader (Rain, Stormy, Fire, Cloud/Fog, Snow, Sunny/Moon, Motes, Mist, Stars, Rainbow), Low through Extreme. **All looks** sets those at once. Mixes use each layer’s shader. High is the default. Rain/Stormy are the most expensive (especially with Distortion). Wallpaper warp uses Rain or Stormy detail. **Pollen** has no Effect detail (count and look are sliders only). Rainbow and Stars are the cheapest; Motes cost scales with speck count.
 
-IPC `quality` still sets Resolution plus **all** Effect detail (`low`…`extreme`; `extreme` is Native + Extreme). `resolution` is scale only. `detail high` sets every shader; `detail rain low` sets one. A blank `detail` read is one word if they match, otherwise `rain:high,stormy:low,…`.
+IPC `quality` still sets Resolution plus **all** Effect detail (`low`…`extreme`; `extreme` is Native + Extreme). `resolution` is scale only. `detail high` sets every shader that has a row; `detail rain low` sets one. A blank `detail` read is one word if they match, otherwise `rain:high,stormy:low,…`.
 
 **Wallpaper only** (off by default) draws the overlay on the wallpaper layer, below windows. Hyprland’s screen shader is cleared. **Distortion** on this target samples the cached wallpaper for rain refraction (`shaders/wallpaper_warp.frag`) and composites those pixels over Omarchy’s background so the swap animation still shows. See [docs/wallpaper-target.md](docs/wallpaper-target.md).
 
@@ -177,15 +177,15 @@ omarchy-shell ogarza.plugins.weather <command> [args]
 | `track` / `exclusive` `[preset]` | Exclusive **Track only** (`rain`, `stormy`, …) |
 | `layer` `<a\|b\|c>` `[shader]` | Custom layer shader (`none` turns a slot off) |
 | `param` `<preset>` `<key>` `[value]` | Read or set a slider. Value is the stored number, or a percent (`80%`). **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition (`sunshower`, `rain`, …), not on `follow`. `nightVisible` is `on`/`off`/`toggle` |
-| `reset` | Restore every mode’s sliders (does not change mode, resolution, detail, or Distortion) |
+| `reset` | Restore every mode’s sliders (does not change mode, resolution, detail, Distortion, or target) |
 | `refresh` | Fetch Follow / Exclusive weather again |
 | `preview <preset>` | Switch to Follow and fade to that look |
 | `quality` `[level]` | Preset that sets **both** Resolution and Effect detail: `low`, `medium`, `high`, or `extreme` (`extreme` → Native + Extreme). If they differ, a read returns `resolution,detail` |
 | `resolution` `[level]` | Render scale: `low`, `medium`, `high`, or `native` |
-| `detail` `[level]` or `[shader] [level]` | Effect detail. One level sets every shader. `rain` / `stormy` / `snow` / `fog` / `sunny` / `fire` / `motes` / `mist` / `stars` / `pollen` / `rainbow` plus a level sets one. Blank read is one word if they match |
+| `detail` `[level]` or `[shader] [level]` | Effect detail. One level sets every shader that has a Settings row. `rain` / `stormy` / `snow` / `fog` / `sunny` / `fire` / `motes` / `mist` / `stars` / `rainbow` plus a level sets one. Pollen has no row (`unknown-shader`). Blank read is one word if they match |
 | `distortion` / `hypr` `[on\|off\|toggle]` | Distortion on or off. Whole screen: Hyprland `screen_shader`. Wallpaper only: wallpaper warp. `hypr` is the same command |
 | `target` `[screen\|wallpaper\|toggle]` | Whole screen vs wallpaper only |
-| `overlay` | Print compositor state (JSON) |
+| `overlay` | Print compositor state (JSON: mode, `target` screen/wallpaper, `wallpaperWarp`, Distortion, resolution, detail, …) |
 
 IPC always needs the typed string arguments. Pass `""` (or any whitespace) for an optional value to print the current setting instead of changing it. Omitting the argument can fail at the call site. Same blank-read rule for power, mode, track, layer, param, quality, resolution, detail, distortion, hypr, and target.
 

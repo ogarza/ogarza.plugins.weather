@@ -42,13 +42,13 @@ omarchy-shell ogarza.plugins.weather power on
 | `param` `<preset>` `<key>` `[value]` | Slider. `%` ok. **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition id (`sunshower`, `rain`, …). `nightVisible` same. |
 | `quality` `[low\|medium\|high\|extreme]` | Sets both Resolution and Effect detail. Read may be `resolution,detail` if they differ |
 | `resolution` `[low\|medium\|high\|native]` | Overlay render scale |
-| `detail` `[level]` or `rain high` etc. | All shaders, or one of rain/stormy/snow/fog/sunny/fire/motes/mist/stars/pollen/rainbow. Blank read is one word if they match |
+| `detail` `[level]` or `rain high` etc. | All shaders that have Effect detail, or one of rain/stormy/snow/fog/sunny/fire/motes/mist/stars/rainbow. Pollen has no detail row. Blank read is one word if they match |
 | `distortion` / `hypr` `[on\|off\|toggle]` | Distortion. Whole screen: Hyprland warp. Wallpaper: cached wallpaper image. Default on. Read with `distortion ""`. `hypr` is the same |
 | `target` `[screen\|wallpaper\|toggle]` | Whole screen vs wallpaper only. Default `screen`. Read with `target ""` |
 | `reset` | Default sliders (not mode/resolution/detail/distortion/target) |
 | `preview` `<preset>` | Follow + fade to that look |
 | `refresh` | Fetch weather again |
-| `overlay` | JSON state |
+| `overlay` | JSON state (`target`, `wallpaperWarp`, mode, detail, Distortion, …) |
 
 ## Param keys
 
@@ -161,7 +161,7 @@ If fire is on A, use `strengthA`. Do not set `param fire strength` for this.
 - Forest fireflies / fairy lights → `mode motes` then `power on`. More specks → `param motes density`. Color is `param motes azimuth` (hue) and `param motes frequency` (saturation). Size `scale`, halo `glow`, breathe `lightning`.
 - Night sparkle / stars → `mode stars` then `power on`. Still field → `param stars sheen 0`. No twinkle → `param stars speed 0`. Harder pulse → raise `param stars speed` (amount, not rate). No meteors → `param stars lightning 0`. `mode sparkle` is the same as Stars.
 - Ground mist / rolling fog → `mode mist` then `power on`. Not Cloud/Fog (`fog`).
-- Pollen / dandelion seeds → `mode pollen` then `power on`. Wind heading is `param pollen sheen` (0 = up). Spin is `param pollen lightning`.
+- Pollen / dandelion seeds → `mode pollen` then `power on`. Wind heading is `param pollen sheen` (0 = up). Spin is `param pollen lightning`. There is no `detail pollen` — Effect detail does not apply.
 - Bigger flakes/drops → `param snow scale` or `param rain scale` (rain max 2; default 1).
 - Rainbow on Sun shower → `param sunshower enableC on`. Follow: same, do not switch mode.
 - “Fire and clouds” / fire + fog → Custom: `layer a fog`, `layer b fire`, `layer c none`. Then weaker fire → `param custom strengthB` (the fire slot), not `param fire strength`.

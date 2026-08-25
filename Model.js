@@ -175,7 +175,7 @@ function fieldsForSettings() {
   ]
 }
 
-var shaderDetailIds = ["rain", "stormy", "snow", "fog", "sunny", "fire", "motes", "mist", "stars", "pollen", "rainbow"]
+var shaderDetailIds = ["rain", "stormy", "snow", "fog", "sunny", "fire", "motes", "mist", "stars", "rainbow"]
 
 function defaultShaderDetail(fallback) {
   var d = normalizedDetail(fallback)
@@ -222,7 +222,6 @@ function normalizedShaderId(value) {
   if (v === "fairy" || v === "fireflies" || v === "specks") return "motes"
   if (v === "ground-mist" || v === "ground mist" || v === "rolling fog" || v === "rolling-fog") return "mist"
   if (v === "star" || v === "sparkle" || v === "starfield") return "stars"
-  if (v === "dandelion" || v === "seeds") return "pollen"
   for (var i = 0; i < shaderDetailIds.length; i++) {
     if (shaderDetailIds[i] === v) return v
   }
@@ -242,13 +241,13 @@ var settingsEffectGuide = [
     shader: "rain",
     title: "Rain",
     cost: "Highest",
-    body: "Glass drops. Medium adds a second rolling pass; Extreme a third, plus highlights. Distortion + Refract warps the whole monitor every frame — usually the most expensive combination."
+    body: "Glass drops. Medium adds a second rolling pass; Extreme a third, plus highlights. Distortion + Refract warps every frame (Hyprland on Whole screen, wallpaper_warp on Wallpaper only) — usually the most expensive combination. Wallpaper warp uses this Rain detail, not a separate row."
   },
   {
     shader: "stormy",
     title: "Stormy",
     cost: "Highest",
-    body: "Same rain cost, plus lightning that grows with detail (more bolt segments at Extreme). Bolts stay on the overlay; rain warp is still Distortion."
+    body: "Same rain cost, plus lightning that grows with detail (more bolt segments at Extreme). Bolts stay on the overlay; rain warp is Distortion (Hyprland or wallpaper_warp). Warp uses this Stormy detail when storm rain is the source."
   },
   {
     shader: "fire",
@@ -259,8 +258,8 @@ var settingsEffectGuide = [
   {
     shader: "motes",
     title: "Motes",
-    cost: "Low",
-    body: "Hash-grid specks (a few cells per pixel, not a loop over every mote). Density is how many cells light up. Overlay only."
+    cost: "Medium",
+    body: "CPU flock: one small sprite per speck (about 4–192 from Density). Detail only changes wander grid size, not count. Overlay only."
   },
   {
     shader: "mist",
@@ -273,12 +272,6 @@ var settingsEffectGuide = [
     title: "Stars",
     cost: "Low",
     body: "Hash-grid starfield (cheap: a few cells per pixel, not a loop over every star). Density is how many cells light up. Overlay only."
-  },
-  {
-    shader: "pollen",
-    title: "Pollen",
-    cost: "Low",
-    body: "Hash-grid seeds. Density is how many cells light up. Overlay only."
   },
   {
     shader: "fog",

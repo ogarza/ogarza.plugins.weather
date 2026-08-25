@@ -257,6 +257,7 @@ Item {
       active: root.active,
       hyprEnabled: root.hyprEnabled,
       target: root.overlayTarget,
+      wallpaperWarp: root.wallpaperWarpWanted,
       hypr: root.hyprKind,
       hyprApplied: root.hyprApplied,
       hyprDamage: root.needsScreenShader ? 0 : root.hyprBaseDamage,
@@ -528,10 +529,9 @@ Item {
     var bits = v.split(/\s+/)
     if (bits.length >= 2) {
       var sh = Model.normalizedShaderId(bits[0])
-      if (sh) {
-        root.setShaderDetail(sh, bits[1])
-        return Model.detailForShader(root.shaderDetail, sh, root.detail)
-      }
+      if (!sh) return "unknown-shader"
+      root.setShaderDetail(sh, bits[1])
+      return Model.detailForShader(root.shaderDetail, sh, root.detail)
     }
     root.setDetail(v)
     return Model.formatShaderDetail(root.shaderDetail)
