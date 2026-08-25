@@ -22,9 +22,14 @@ Panel {
   readonly property var manualModeList: Model.modesForPanel(true)
   readonly property var exclusiveList: Model.exclusivePresets
   readonly property var mixShaderList: Model.customLayerEntries()
-  readonly property var qualityList: Model.qualityLevels
-  readonly property bool exclusiveMode: !!(fx && fx.mode === "exclusive")
-  readonly property bool customMode: !!(fx && fx.mode === "custom")
+  readonly property var resolutionList: Model.resolutionLevels
+  readonly property var detailList: Model.detailLevels
+  readonly property var settingsFields: Model.fieldsForSettings()
+  readonly property var settingsLodRows: Model.settingsLodRows()
+  property int lodRowIndex: 0
+  property bool settingsOpen: false
+  readonly property bool exclusiveMode: !!(fx && fx.mode === "exclusive") && !root.settingsOpen
+  readonly property bool customMode: !!(fx && fx.mode === "custom") && !root.settingsOpen
   readonly property string tweakPreset: {
     if (!fx) return ""
     if (fx.mode === "follow") return fx.weatherPreset || ""
@@ -35,13 +40,14 @@ Panel {
   readonly property var layerFieldsA: fx ? Model.fieldsForVisualLayer(tweakPreset, 0, fx.customShaderA, fx.customShaderB, fx.customShaderC, fx.params) : []
   readonly property var layerFieldsB: fx ? Model.fieldsForVisualLayer(tweakPreset, 1, fx.customShaderA, fx.customShaderB, fx.customShaderC, fx.params) : []
   readonly property var layerFieldsC: fx ? Model.fieldsForVisualLayer(tweakPreset, 2, fx.customShaderA, fx.customShaderB, fx.customShaderC, fx.params) : []
-  readonly property int paramCols: (root.layerFieldsA.length > 0 ? 1 : 0)
+  readonly property int paramCols: root.settingsOpen ? 1
+    : (root.layerFieldsA.length > 0 ? 1 : 0)
     + (root.layerFieldsB.length > 0 ? 1 : 0)
     + (root.layerFieldsC.length > 0 ? 1 : 0)
   readonly property string layerHeadingA: Model.layerHeading(tweakPreset, 0, fx ? fx.customShaderA : "", fx ? fx.customShaderB : "", fx ? fx.customShaderC : "")
   readonly property string layerHeadingB: Model.layerHeading(tweakPreset, 1, fx ? fx.customShaderA : "", fx ? fx.customShaderB : "", fx ? fx.customShaderC : "")
   readonly property string layerHeadingC: Model.layerHeading(tweakPreset, 2, fx ? fx.customShaderA : "", fx ? fx.customShaderB : "", fx ? fx.customShaderC : "")
-  readonly property bool showTweaks: root.tweakFields.length > 0
+  readonly property bool showTweaks: !root.settingsOpen && root.tweakFields.length > 0
   readonly property int tweakRowCount: root.tweakFields.length
   readonly property string tweakHeading: {
     if (!root.showTweaks) return "Parameters"
@@ -71,7 +77,8 @@ Panel {
   property int layerBIndex: 0
   property int layerCIndex: 0
   property int tweakIndex: 0
-  property int qualityIndex: 2
+  property int resolutionIndex: 2
+  property int detailIndex: 2
   property bool cursorActive: false
 
   readonly property color foreground: bar ? bar.foreground : Color.foreground
@@ -138,7 +145,10 @@ Panel {
         break
       }
     }
-    root.qualityIndex = Model.indexOfQuality(root.fx.quality)
+    root.resolutionIndex = Model.indexOfResolution(root.fx.resolution)
+    root.detailIndex = Model.indexOfDetail(root.fx.detail)
+    if (root.fx.mode === "none")
+      root.settingsOpen = true
   }
 
   function clampCursor() {
@@ -148,6 +158,8 @@ Panel {
       root.focusSection = "modes"
     if ((root.focusSection === "tweaks" || root.focusSection === "reset") && !root.showTweaks)
       root.focusSection = root.customMode ? "layerC" : (root.exclusiveMode ? "track" : "modes")
+    if ((root.focusSection === "resolution" || root.focusSection === "lod" || root.focusSection === "detail") && !root.settingsOpen)
+      root.focusSection = "modes"
     if (root.modeIndex < 0) root.modeIndex = 0
     if (root.modeIndex >= root.modeList.length)
       root.modeIndex = Math.max(0, root.modeList.length - 1)
@@ -166,9 +178,33 @@ Panel {
     if (root.tweakIndex < 0) root.tweakIndex = 0
     if (root.tweakIndex >= root.tweakRowCount)
       root.tweakIndex = Math.max(0, root.tweakRowCount - 1)
-    if (root.qualityIndex < 0) root.qualityIndex = 0
-    if (root.qualityIndex >= root.qualityList.length)
-      root.qualityIndex = Math.max(0, root.qualityList.length - 1)
+    if (root.resolutionIndex < 0) root.resolutionIndex = 0
+    if (root.resolutionIndex >= root.resolutionList.length)
+      root.resolutionIndex = Math.max(0, root.resolutionList.length - 1)
+    if (root.detailIndex < 0) root.detailIndex = 0
+    if (root.detailIndex >= root.detailList.length)
+      root.detailIndex = Math.max(0, root.detailList.length - 1)
+    if (root.lodRowIndex < 0) root.lodRowIndex = 0
+    if (root.lodRowIndex >= root.settingsLodRows.length)
+      root.lodRowIndex = Math.max(0, root.settingsLodRows.length - 1)
+  }
+
+  function lodLevelForRow(row) {
+    var spec = root.settingsLodRows[row]
+    if (!root.fx || !spec) return "high"
+    if (!spec.shader) {
+      if (!Model.shaderDetailAllEqual(root.fx.shaderDetail)) return ""
+      return root.fx.detail
+    }
+    return Model.detailForShader(root.fx.shaderDetail, spec.shader, root.fx.detail)
+  }
+
+  function applyLodRow(row, level) {
+    if (!root.fx) return
+    var spec = root.settingsLodRows[row]
+    if (!spec) return
+    if (!spec.shader) root.fx.setDetail(level)
+    else root.fx.setShaderDetail(spec.shader, level)
   }
 
   function adjustTweak(dir) {
@@ -186,20 +222,38 @@ Panel {
       root.adjustTweak(dx)
       return
     }
-    if (root.focusSection === "quality" && dx !== 0) {
-      var nextQ = root.qualityIndex + dx
-      if (nextQ < 0) nextQ = 0
-      if (nextQ >= root.qualityList.length) nextQ = root.qualityList.length - 1
-      root.qualityIndex = nextQ
-      if (root.fx && root.qualityList[nextQ])
-        root.fx.setQuality(root.qualityList[nextQ].value)
+    if (root.focusSection === "resolution" && dx !== 0) {
+      var nextR = root.resolutionIndex + dx
+      if (nextR < 0) nextR = 0
+      if (nextR >= root.resolutionList.length) nextR = root.resolutionList.length - 1
+      root.resolutionIndex = nextR
+      if (root.fx && root.resolutionList[nextR])
+        root.fx.setResolution(root.resolutionList[nextR].value)
+      return
+    }
+    if (root.focusSection === "lod" && dx !== 0) {
+      var nextL = root.detailIndex + dx
+      if (nextL < 0) nextL = 0
+      if (nextL >= root.detailList.length) nextL = root.detailList.length - 1
+      root.detailIndex = nextL
+      if (root.detailList[nextL])
+        root.applyLodRow(root.lodRowIndex, root.detailList[nextL].value)
+      return
+    }
+    if (root.focusSection === "target" && dx !== 0) {
+      if (root.fx) root.fx.setOverlayTarget(root.fx.wallpaperTarget ? "screen" : "wallpaper")
       return
     }
     if (root.focusSection === "hypr" && dx !== 0) {
       if (root.fx) root.fx.setHyprEnabled(!root.fx.hyprEnabled)
       return
     }
-    if (dx > 0 && root.showTweaks && root.focusSection !== "tweaks" && root.focusSection !== "reset" && root.focusSection !== "quality" && root.focusSection !== "hypr") {
+    if (dx > 0 && root.settingsOpen && root.focusSection !== "resolution" && root.focusSection !== "lod" && root.focusSection !== "hypr" && root.focusSection !== "target") {
+      root.focusSection = "resolution"
+      root.resolutionIndex = root.fx ? Model.indexOfResolution(root.fx.resolution) : root.resolutionIndex
+      return
+    }
+    if (dx > 0 && root.showTweaks && root.focusSection !== "tweaks" && root.focusSection !== "reset" && root.focusSection !== "hypr" && root.focusSection !== "target") {
       root.focusSection = "reset"
       return
     }
@@ -207,13 +261,12 @@ Panel {
 
     if (root.focusSection === "header") {
       if (dy > 0) {
-        root.focusSection = "quality"
-        root.qualityIndex = root.fx ? Model.indexOfQuality(root.fx.quality) : root.qualityIndex
+        root.focusSection = "target"
       }
       return
     }
 
-    if (root.focusSection === "quality") {
+    if (root.focusSection === "target") {
       if (dy < 0) {
         root.focusSection = "header"
         return
@@ -224,12 +277,41 @@ Panel {
 
     if (root.focusSection === "hypr") {
       if (dy < 0) {
-        root.focusSection = "quality"
-        root.qualityIndex = root.fx ? Model.indexOfQuality(root.fx.quality) : root.qualityIndex
+        root.focusSection = "target"
         return
       }
       root.focusSection = "modes"
       root.modeIndex = 0
+      return
+    }
+
+    if (root.focusSection === "resolution") {
+      if (dy < 0) {
+        root.focusSection = "modes"
+        root.modeIndex = 0
+        return
+      }
+      root.focusSection = "lod"
+      root.lodRowIndex = 0
+      root.detailIndex = Model.indexOfDetail(root.lodLevelForRow(0))
+      return
+    }
+
+    if (root.focusSection === "lod") {
+      if (dy < 0) {
+        if (root.lodRowIndex <= 0) {
+          root.focusSection = "resolution"
+          root.resolutionIndex = root.fx ? Model.indexOfResolution(root.fx.resolution) : root.resolutionIndex
+          return
+        }
+        root.lodRowIndex = root.lodRowIndex - 1
+        root.detailIndex = Model.indexOfDetail(root.lodLevelForRow(root.lodRowIndex))
+        return
+      }
+      if (root.lodRowIndex < root.settingsLodRows.length - 1) {
+        root.lodRowIndex = root.lodRowIndex + 1
+        root.detailIndex = Model.indexOfDetail(root.lodLevelForRow(root.lodRowIndex))
+      }
       return
     }
 
@@ -386,9 +468,18 @@ Panel {
       root.fx.toggle()
       return
     }
-    if (root.focusSection === "quality") {
-      var quality = root.qualityList[root.qualityIndex]
-      if (quality) root.fx.setQuality(quality.value)
+    if (root.focusSection === "resolution") {
+      var res = root.resolutionList[root.resolutionIndex]
+      if (res) root.fx.setResolution(res.value)
+      return
+    }
+    if (root.focusSection === "lod") {
+      var lod = root.detailList[root.detailIndex]
+      if (lod) root.applyLodRow(root.lodRowIndex, lod.value)
+      return
+    }
+    if (root.focusSection === "target") {
+      root.fx.setOverlayTarget(root.fx.wallpaperTarget ? "screen" : "wallpaper")
       return
     }
     if (root.focusSection === "hypr") {
@@ -397,7 +488,13 @@ Panel {
     }
     if (root.focusSection === "modes") {
       var entry = root.modeList[root.modeIndex]
-      if (entry) root.fx.setMode(entry.value)
+      if (!entry) return
+      if (entry.value === "none") {
+        root.settingsOpen = true
+        return
+      }
+      root.settingsOpen = false
+      root.fx.setMode(entry.value)
       return
     }
     if (root.focusSection === "track") {
@@ -444,9 +541,11 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(root.paramCols > 0 || root.customMode || root.exclusiveMode
+    contentWidth: panel.fittedContentWidth(root.settingsOpen
+      ? Style.space(1000)
+      : (root.paramCols > 0 || root.customMode || root.exclusiveMode
       ? Style.space(((root.customMode || root.exclusiveMode) ? 680 : 520) + 220 * Math.max(1, root.paramCols))
-      : Style.space(560))
+      : Style.space(560)))
     contentHeight: panel.fittedContentHeight(column.implicitHeight)
 
     PanelKeyCatcher {
@@ -517,33 +616,47 @@ Panel {
             }
           }
 
-          Column {
+          CursorSurface {
             width: parent.width
-            spacing: Style.space(6)
+            implicitHeight: targetSwitch.implicitHeight
+            hasCursor: root.cursorActive && root.focusSection === "target"
+            foreground: root.foreground
+            outline: true
 
-            Text {
-              width: parent.width
-              text: "Quality"
-              color: root.dim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              font.bold: true
+            MouseArea {
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onEntered: {
+                root.cursorActive = true
+                root.focusSection = "target"
+              }
+              onClicked: if (root.fx) root.fx.setOverlayTarget(root.fx.wallpaperTarget ? "screen" : "wallpaper")
             }
 
             Row {
               width: parent.width
-              spacing: Style.space(8)
+              spacing: Style.space(12)
+              anchors.verticalCenter: parent.verticalCenter
+              anchors.left: parent.left
+              anchors.leftMargin: Style.space(6)
 
-              Repeater {
-                model: root.qualityList
+              ToggleSwitch {
+                id: targetSwitch
+                checked: root.fx ? root.fx.wallpaperTarget === true : false
+                interactive: false
+                hasCursor: root.cursorActive && root.focusSection === "target"
+                foreground: root.foreground
+              }
 
-                QualityChip {
-                  required property var modelData
-                  required property int index
-                  width: (parent.width - Style.space(8) * 3) / 4
-                  entry: modelData
-                  rowIndex: index
-                }
+              Text {
+                text: "Wallpaper only"
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                font.bold: true
+                width: parent.width - targetSwitch.width - Style.space(12)
+                wrapMode: Text.WordWrap
               }
             }
           }
@@ -582,7 +695,7 @@ Panel {
               }
 
               Text {
-                text: "Hyprland distortion"
+                text: "Distortion"
                 color: root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
@@ -719,6 +832,51 @@ Panel {
               }
             }
 
+            Column {
+              visible: root.settingsOpen
+              width: visible ? parent.width * 0.68 - Style.space(16) : 0
+              height: visible ? implicitHeight : 0
+              spacing: Style.space(12)
+
+              Text {
+                width: parent.width
+                text: "Settings"
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                font.bold: true
+              }
+
+              Text {
+                width: parent.width
+                text: Model.descriptionForPreset("none", 0)
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                wrapMode: Text.WordWrap
+              }
+
+              SettingRow {
+                axis: "resolution"
+                title: "Resolution"
+                blurb: root.settingsFields[0].hint
+              }
+
+              Repeater {
+                model: root.settingsLodRows
+
+                SettingRow {
+                  required property var modelData
+                  required property int index
+                  axis: "lod"
+                  lodRow: index
+                  lodShader: String(modelData.shader || "")
+                  title: modelData.title
+                  blurb: modelData.cost + ". " + modelData.body
+                }
+              }
+            }
+
             LayerTweaks {
               heading: root.layerHeadingA
               fields: root.layerFieldsA
@@ -781,7 +939,7 @@ Panel {
     property var fields: []
     property int indexOffset: 0
     property bool showBlurb: false
-    visible: layerTweaks.fields && layerTweaks.fields.length > 0
+    visible: !root.settingsOpen && layerTweaks.fields && layerTweaks.fields.length > 0
     width: visible
       ? (parent.width * ((root.customMode || root.exclusiveMode) ? 0.48 : 0.62) - Style.space(16)) / Math.max(1, root.paramCols)
       : 0
@@ -825,15 +983,81 @@ Panel {
     }
   }
 
+  component SettingRow: Row {
+    id: settingRow
+    property string axis: "resolution"
+    property int lodRow: 0
+    property string lodShader: ""
+    property string title: ""
+    property string blurb: ""
+    width: parent.width
+    spacing: Style.space(16)
+
+    Column {
+      width: parent.width * 0.48 - Style.space(8)
+      spacing: Style.space(6)
+
+      Text {
+        width: parent.width
+        text: settingRow.title
+        color: root.dim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        font.bold: true
+      }
+
+      Row {
+        width: parent.width
+        spacing: Style.space(6)
+
+        Repeater {
+          model: settingRow.axis === "resolution" ? root.resolutionList : root.detailList
+
+          QualityChip {
+            required property var modelData
+            required property int index
+            width: (parent.width - Style.space(6) * 3) / 4
+            entry: modelData
+            rowIndex: index
+            axis: settingRow.axis
+            lodRow: settingRow.lodRow
+            lodShader: settingRow.lodShader
+          }
+        }
+      }
+    }
+
+    Text {
+      width: parent.width * 0.52 - Style.space(8)
+      text: settingRow.blurb
+      color: root.dim
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.WordWrap
+      verticalAlignment: Text.AlignVCenter
+    }
+  }
+
   component QualityChip: CursorSurface {
     id: qualityChip
     property var entry: null
     property int rowIndex: 0
+    property string axis: "resolution"
+    property int lodRow: 0
+    property string lodShader: ""
     readonly property string value: entry ? String(entry.value) : ""
     readonly property string label: entry ? String(entry.label) : ""
-    readonly property bool selected: root.fx && root.fx.quality === qualityChip.value
+    readonly property bool selected: {
+      if (!root.fx) return false
+      if (qualityChip.axis === "lod")
+        return root.lodLevelForRow(qualityChip.lodRow) === qualityChip.value
+      return root.fx.resolution === qualityChip.value
+    }
 
-    hasCursor: root.cursorActive && root.focusSection === "quality" && root.qualityIndex === rowIndex
+    hasCursor: root.cursorActive && root.focusSection === qualityChip.axis && (
+      qualityChip.axis === "lod"
+        ? (root.lodRowIndex === qualityChip.lodRow && root.detailIndex === rowIndex)
+        : root.resolutionIndex === rowIndex)
     current: selected
     foreground: root.foreground
 
@@ -845,10 +1069,21 @@ Panel {
       cursorShape: Qt.PointingHandCursor
       onEntered: {
         root.cursorActive = true
-        root.focusSection = "quality"
-        root.qualityIndex = qualityChip.rowIndex
+        root.focusSection = qualityChip.axis
+        if (qualityChip.axis === "lod") {
+          root.lodRowIndex = qualityChip.lodRow
+          root.detailIndex = qualityChip.rowIndex
+        } else {
+          root.resolutionIndex = qualityChip.rowIndex
+        }
       }
-      onClicked: if (root.fx) root.fx.setQuality(qualityChip.value)
+      onClicked: {
+        if (!root.fx) return
+        if (qualityChip.axis === "lod")
+          root.applyLodRow(qualityChip.lodRow, qualityChip.value)
+        else
+          root.fx.setResolution(qualityChip.value)
+      }
     }
 
     Text {
@@ -869,10 +1104,12 @@ Panel {
     readonly property string value: entry ? String(entry.value) : ""
     readonly property string label: entry ? String(entry.label) : ""
     readonly property string glyph: entry ? String(entry.icon) : ""
-    readonly property bool selected: root.fx && root.fx.mode === modeRow.value
+    readonly property bool isSettings: modeRow.value === "none"
+    readonly property bool modeActive: root.fx && root.fx.mode === modeRow.value
+    readonly property bool selected: modeRow.isSettings ? root.settingsOpen : modeRow.modeActive
 
     hasCursor: root.cursorActive && root.focusSection === "modes" && root.modeIndex === rowIndex
-    current: selected
+    current: modeRow.isSettings ? root.settingsOpen : (!root.settingsOpen && modeRow.modeActive)
     foreground: root.foreground
 
     implicitHeight: modeContent.implicitHeight + Style.space(10)
@@ -886,7 +1123,15 @@ Panel {
         root.focusSection = "modes"
         root.modeIndex = modeRow.rowIndex
       }
-      onClicked: if (root.fx) root.fx.setMode(modeRow.value)
+      onClicked: {
+        if (!root.fx) return
+        if (modeRow.isSettings) {
+          root.settingsOpen = true
+          return
+        }
+        root.settingsOpen = false
+        root.fx.setMode(modeRow.value)
+      }
     }
 
     RowLayout {
@@ -912,7 +1157,7 @@ Panel {
         color: root.foreground
         font.family: root.fontFamily
         font.pixelSize: Style.font.body
-        font.bold: modeRow.selected
+        font.bold: modeRow.isSettings ? root.settingsOpen : modeRow.modeActive
         elide: Text.ElideRight
       }
     }
@@ -1106,14 +1351,17 @@ Panel {
     readonly property bool isTemp: !!(field && field.format === "temp")
     readonly property bool imperial: Model.shouldUseImperial(Qt.locale().name)
     readonly property real paramValue: root.fx
-      ? Model.paramValue(root.fx.params, tweakCol.paramPreset, tweakCol.paramKey, tweakCol.isCheck ? 0 : (tweakCol.isTemp ? Model.defaultHazeTempC : 1))
-      : (tweakCol.isCheck ? 0 : (tweakCol.isTemp ? Model.defaultHazeTempC : 1))
+      ? Model.paramValue(root.fx.params, tweakCol.paramPreset, tweakCol.paramKey, tweakCol.isCheck ? 0 : 1)
+      : (tweakCol.isCheck ? 0 : 1)
     readonly property real displayMin: tweakCol.isTemp ? (tweakCol.imperial ? 50 : 10) : tweakCol.minimum
     readonly property real displayMax: tweakCol.isTemp ? (tweakCol.imperial ? 120 : 49) : tweakCol.maximum
     readonly property real displayValue: tweakCol.isTemp
       ? (tweakCol.imperial ? Model.celsiusToFahrenheit(tweakCol.paramValue) : tweakCol.paramValue)
       : tweakCol.paramValue
+    readonly property bool deferLive: tweakCol.paramPreset === "motes" || tweakCol.paramPreset === "pollen"
     readonly property bool rowCursor: root.cursorActive && root.focusSection === "tweaks" && root.tweakIndex === tweakCol.rowIndex
+    property bool sliding: false
+    property real draftDisplay: 0
     readonly property bool checked: tweakCol.paramValue >= 0.5
 
     function commit(v, persist) {
@@ -1134,8 +1382,8 @@ Panel {
       text: tweakCol.isCheck
         ? (tweakCol.label + (tweakCol.checked ? "  On" : "  Off"))
         : tweakCol.isTemp
-          ? (tweakCol.label + "  " + Math.round(tweakCol.displayValue) + (tweakCol.imperial ? "°F" : "°C"))
-          : (tweakCol.label + "  " + Math.round(tweakCol.paramValue * 100) + "%")
+          ? (tweakCol.label + "  " + Math.round(tweakCol.sliding ? tweakCol.draftDisplay : tweakCol.displayValue) + (tweakCol.imperial ? "°F" : "°C"))
+          : (tweakCol.label + "  " + Math.round((tweakCol.sliding ? tweakCol.draftDisplay : tweakCol.paramValue) * 100) + "%")
       color: root.dim
       font.family: root.fontFamily
       font.pixelSize: Style.font.caption
@@ -1187,9 +1435,17 @@ Panel {
         minimum: tweakCol.displayMin
         maximum: tweakCol.displayMax
         step: tweakCol.isTemp ? 1 : (tweakCol.maximum > 1 ? 0.1 : 0.05)
-        value: tweakCol.displayValue
-        onMoved: function(v) { tweakCol.commit(v, false) }
-        onReleased: function(v) { tweakCol.commit(v, true) }
+        value: tweakCol.sliding ? tweakCol.draftDisplay : tweakCol.displayValue
+        onMoved: function(v) {
+          tweakCol.sliding = true
+          tweakCol.draftDisplay = v
+          if (!tweakCol.deferLive)
+            tweakCol.commit(v, false)
+        }
+        onReleased: function(v) {
+          tweakCol.sliding = false
+          tweakCol.commit(v, true)
+        }
       }
 
       HoverHandler {

@@ -55,8 +55,20 @@ BarWidget {
     function quality(level: string): string {
       return root.fx && root.fx.ipcQuality ? root.fx.ipcQuality(level) : "no-service"
     }
+    function resolution(level: string): string {
+      return root.fx && root.fx.ipcResolution ? root.fx.ipcResolution(level) : "no-service"
+    }
+    function detail(level: string): string {
+      return root.fx && root.fx.ipcDetail ? root.fx.ipcDetail(level) : "no-service"
+    }
+    function distortion(value: string): string {
+      return root.fx && root.fx.ipcHypr ? root.fx.ipcHypr(value) : "no-service"
+    }
     function hypr(value: string): string {
       return root.fx && root.fx.ipcHypr ? root.fx.ipcHypr(value) : "no-service"
+    }
+    function target(value: string): string {
+      return root.fx && root.fx.ipcTarget ? root.fx.ipcTarget(value) : "no-service"
     }
     function power(value: string): string {
       return root.fx && root.fx.ipcPower ? root.fx.ipcPower(value) : "no-service"

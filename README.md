@@ -1,8 +1,8 @@
 # Omarchy Weather Effects
 
-Fullscreen weather on your Omarchy desktop: rain on glass, snow, clouds, sun, storms, fire, rainbows, and mixes. Most of it is a transparent overlay. Rain refraction and heat haze go through Hyprland so they warp the real desktop, not a painted copy.
+Fullscreen weather on your Omarchy desktop: rain on glass, snow, clouds, sun, storms, fire, motes, mist, stars, pollen, rainbows, and mixes. Most of it is a transparent overlay. Rain refraction goes through Hyprland (or the wallpaper warp) so drops warp the real desktop, not a painted copy.
 
-Plugin id: `ogarza.plugins.weather` · version **1.6.5**
+Plugin id: `ogarza.plugins.weather` · version **1.9.0**
 
 ## Install
 
@@ -46,7 +46,7 @@ Then reopen the weather panel, or run `omarchy restart shell`. `qsb` lives at `/
 
 ### Uninstall
 
-If the overlay or Hyprland distortion was on when you removed the plugin, Hyprland can keep the last screen shader until you clear it. Settings live in the Omarchy shell plugin entry (not this repo). Generated files sit under the state directory.
+If the overlay or Distortion was on when you removed the plugin, Hyprland can keep the last screen shader until you clear it. Settings live in the Omarchy shell plugin entry (not this repo). Generated files sit under the state directory.
 
 ```bash
 omarchy plugin remove ogarza.plugins.weather
@@ -74,12 +74,18 @@ omarchy pkg drop qt6-shadertools
 
 ## Usage
 
-- **Left-click** the bar sparkle to open the panel (modes and quality on the left, sliders on the right).
+- **Left-click** the bar sparkle to open the panel (modes on the left, sliders on the right). **Settings** is the first row: Resolution and per-shader Effect detail (description to the right of each row), without turning the overlay off.
 - **Right-click** to turn the overlay on or off.
 
-**Quality** (Low, Medium, High, Extreme) trades sharpness for cost. High is the default. The overlay still renders at 33% / 50% / 75% / 100% of native pixels. Rain and Stormy drop work no longer drops as far: Low uses the old Medium layers, Medium matches High, Extreme still adds another drop pass. If the desktop feels heavy, drop quality first.
+**Settings → Resolution** (Low, Medium, High, Native) is how large the overlay is drawn: 33% / 50% / 75% / 100% of native pixels. Native skips the extra blit. High is the default. Drop this first if the desktop feels heavy.
 
-**Hyprland distortion** is a global switch for refraction and haze. On (the default) keeps one combined Hyprland shader the whole time: rain and haze share that program, and the unused term is multiplied by 0 (Fog and Snow stay applied). Off leaves those sliders alone, uses the painted overlay, and clears the shader.
+**Settings → Effect detail** is per shader (Rain, Stormy, Fire, Cloud/Fog, Snow, Sunny/Moon, Motes, Mist, Stars, Rainbow), Low through Extreme. **All looks** sets those at once. Mixes use each layer’s shader. High is the default. Rain/Stormy are the most expensive (especially with Distortion). Wallpaper warp uses Rain or Stormy detail. **Pollen** has no Effect detail (count and look are sliders only). Rainbow and Stars are the cheapest; Motes cost scales with speck count.
+
+IPC `quality` still sets Resolution plus **all** Effect detail (`low`…`extreme`; `extreme` is Native + Extreme). `resolution` is scale only. `detail high` sets every shader that has a row; `detail rain low` sets one. A blank `detail` read is one word if they match, otherwise `rain:high,stormy:low,…`.
+
+**Wallpaper only** (off by default) draws the overlay on the wallpaper layer, below windows. Hyprland’s screen shader is cleared. **Distortion** on this target samples the cached wallpaper for rain refraction (`shaders/wallpaper_warp.frag`) and composites those pixels over Omarchy’s background so the swap animation still shows. See [docs/wallpaper-target.md](docs/wallpaper-target.md).
+
+**Distortion** is a global switch for rain and storm refraction. On (the default) keeps one Hyprland shader while the target is **Whole screen**. On **Wallpaper only** the same switch drives the wallpaper warp shader instead of `screen_shader`. Off leaves the Refract sliders alone and uses the painted overlay.
 
 Mode changes in the panel fade over about two seconds. Follow fades forecast changes over about ten.
 
@@ -87,49 +93,58 @@ Mode changes in the panel fade over about two seconds. Follow fades forecast cha
 
 | Mode | Effect |
 |------|--------|
-| None | Overlay off until you pick an effect (default) |
+| Settings | Resolution and per-shader Effect detail (notes on the right). Does not change the current mode. Overlay off is the header power switch or IPC `mode none` (default). |
 | Rain | Glass beads and trails. Hyprland **Refract** warps the desktop (painted rain is skipped while that is live). Refract 0 is painted only. |
-| Snow | Falling flakes (overlay only; lower Quality uses fewer layers) |
+| Snow | Falling flakes (overlay only; lower Effect detail uses fewer layers) |
 | Cloud/Fog | Soft clouds, denser high up; top and bottom faded so the desktop stays readable |
-| Sunny | Warm glow by day. Over civil twilight (sun 0° to −6°, a few minutes) it eases to cool moonlight. **Haze** warps the desktop only when outdoor temperature is at or above **On above** (default 90°F / 32.2°C) |
+| Sunny | Warm glow by day. Over civil twilight (sun 0° to −6°, a few minutes) it eases to cool moonlight |
 | Partly cloudy | Clouds and sun (sun→moonlight like Sunny). Follow becomes Moonlit clouds after sunset |
-| Overcast | Heavy clouds, faint sun (same twilight and haze rules as Sunny) |
+| Overcast | Heavy clouds, faint sun (same twilight rules as Sunny) |
 | Sun shower | Sun and rain. Optional rainbow fades at night unless **After sunset** is on |
 | Moonlit clouds | Clouds and moon. Exclusive treats this and Partly cloudy as a match |
 | Drizzle | Light rain through clouds (same refraction rules as Rain) |
 | Snow squall | Snow through clouds (no desktop warp) |
 | Wintry mix | Rain and snow (rain can still refract) |
 | Stormy | Diagonal rain, Gloom wash, overlay lightning. **Angle** is drop lean. Refraction like Rain |
-| Follow | Live forecast for your Omarchy location. Never Fire, Rainbow, or Custom. Clear = Sunny; thunder = Stormy; partly cloudy → moonlit after sunset. Fades in about ten seconds |
+| Follow | Live forecast for your Omarchy location. Never Fire, Motes, Mist, Stars, Pollen, Rainbow, or Custom. Clear = Sunny; thunder = Stormy; partly cloudy → moonlit after sunset. Fades in about ten seconds |
 | Exclusive | Same fetch as Follow; overlay only when weather matches **Track only**. The panel previews until you close it |
-| Fire | Ground fire (manual only). **Haze** is not gated by temperature |
+| Fire | Ground fire (manual only) |
+| Motes | Floating glowing specks (manual only). Overlay only. **Hue**, **Saturation**, **Size**, **Glow**, **Glow pulse** |
+| Mist | Ground-hugging rolling haze (manual only). Overlay only. Opposite of Cloud/Fog. **Hue** tints the mist |
+| Stars | Twinkling starfield (manual only). Overlay only. Three slow **Parallax** layers (0 is still). **Twinkle amount** is pulse depth (0 off). **Shooting stars** are rare and brief (0 off); each pass picks a heading and near/far size. **Hue**, **Saturation**, **Size**, **Glow** |
+| Pollen | Dandelion-like seeds that lift and sway (manual only). Overlay only. **Wind** (0 = up), **Tumble**, **Hue**, **Saturation**, **Size**, **Glow** |
 | Rainbow | Primary and secondary bows (manual only). Hidden after sunset unless **After sunset** is on (**Night glow** / **Night strength**) |
 | Custom | Up to three stacked shaders; **None** turns a layer off (manual only). Sliders are shared with the standalone modes |
 
-The panel lists forecast modes first, then **Manual only** for Fire, Rainbow, and Custom. Mixes open one parameter column per layer. **Add Rainbow** adds a Rainbow column. Custom stacks Layer A / B / C pickers (each can be **None**).
+The panel lists forecast modes first, then **Manual only** for Fire, Motes, Mist, Stars, Pollen, Rainbow, and Custom. Mixes open one parameter column per layer. **Add Rainbow** adds a Rainbow column. Custom stacks Layer A / B / C pickers (each can be **None**).
 
-**Follow** and **Exclusive** read `~/.local/state/omarchy/settings/weather.json` — the same location Omarchy uses. With coordinates they ask [Open-Meteo](https://open-meteo.com/) for the current weather code and outdoor temperature. Without coordinates they fall back to [wttr.in](https://wttr.in/). Refresh is about every 15 minutes. That temperature also gates sunny **Haze** when **On above** is set.
+**Follow** and **Exclusive** read `~/.local/state/omarchy/settings/weather.json` — the same location Omarchy uses. With coordinates they ask [Open-Meteo](https://open-meteo.com/) for the current weather code and outdoor temperature. Without coordinates they fall back to [wttr.in](https://wttr.in/). Refresh is about every 15 minutes.
 
-Follow never picks fire, rainbow, or custom. Clear sky is sunny. Partly cloudy becomes moonlit clouds after sunset. Thunder is stormy.
+Follow never picks fire, motes, mist, stars, pollen, rainbow, or custom. Clear sky is sunny. Partly cloudy becomes moonlit clouds after sunset. Thunder is stormy.
 
 **Exclusive** uses the same fetch, then only shows the overlay when the live weather matches **Track only**. While the panel is open you can preview the tracked effect. After you close it, the overlay waits until that weather is actually happening. Partly cloudy and moonlit clouds count as a match for each other.
 
 ### Tweaks
 
-Columns to the right of the mode list show a short description and the sliders for that look. Overlay uniforms update while you drag. Hyprland distortion rebuilds when you release the slider. Values persist in shell config.
+Columns to the right of the mode list show a short description and the sliders for that look. Overlay uniforms update while you drag except **Motes** and **Pollen** (sprite flocks): those apply when you release the slider so the panel stays snappy. Distortion rebuilds when you release the slider. Values persist in shell config.
 
 - **Strength** — overall intensity on single-shader modes
-- **Clouds / Sun / Moon / Rain / Snow / Haze / Layer A / B / C** — mix layer strengths
+- **Clouds / Sun / Moon / Rain / Snow / Fog / Layer A / B / C** — mix layer strengths
 - **Add Rainbow** — optional rainbow on any other condition (off by default)
-- **Density** / **Speed** — coverage and motion
-- **Scale** / **Size** — drop, flake, flame, cloud, or rainbow size. Rain and Stormy Scale go to 200%; default 100% is the old max
+- **Density** / **Speed** — coverage and motion. Stars Density is how many grid cells light up. Motes and Pollen Density is seed count (about 4–192). At 0 they are a handful of specks; the rest of the slider is linear
+- **Twinkle amount** — Stars only: how hard each star pulses (0 is off / steady). Rate is fixed
+- **Scale** / **Size** — drop, flake, flame, cloud, mote, star, seed, or rainbow size. Rain and Stormy Scale go to 200%; default 100% is the old max
 - **Sheen** — glints on rain and storm drops
+- **Parallax** — Stars only: slow drift between near/mid/far layers (0 is still)
+- **Shooting stars** — Stars only: how often a brief meteor appears (0 is none). Each one gets a random heading and near/far scale
+- **Wind** — Pollen heading (0 = up, then around the compass)
+- **Tumble** — Pollen seed spin
 - **Darken** — how much raindrops tint the glass.
 - **Refract** — warp the real desktop through rain or storm drops. Default 100%. 0 keeps the painted overlay
-- **Haze** — heat shimmer on Sunny and Fire
-- **On above** — outdoor temperature where sunny haze turns on (default 90°F / 32.2°C). Fire haze ignores this
 - **Brightness** — snow flakes
-- **Glow** — sun, fire, or rainbow brightness
+- **Glow** — sun, fire, motes, mist, stars, pollen, or rainbow brightness
+- **Glow pulse** — each mote’s halo breathes on its own clock (0 is steady; 200% is a strong staggered blink)
+- **Hue** / **Saturation** — mote, star, pollen, and mist color (Hue walks the wheel; Saturation 0 is near-white; mist has Hue only)
 - **Vividness** — rainbow bands
 - **Dust** — motes in sunny / moonlight
 - **Position** / **Distance** — sun and moon placement
@@ -140,7 +155,7 @@ Columns to the right of the mode list show a short description and the sliders f
 - **Flash** — lightning brightness
 - **Frequency** — how often bolts strike
 - **Gloom** — storm dark wash
-- **Reset to defaults** — first control in the parameter column. Restores sliders for every mode; does not change the selected mode or quality
+- **Reset to defaults** — first control in the parameter column. Restores sliders for every mode; does not change the selected mode, Resolution, or Effect detail
 
 Shared shaders share sliders: changing rain density from Drizzle also changes standalone Rain.
 
@@ -161,15 +176,18 @@ omarchy-shell ogarza.plugins.weather <command> [args]
 | `mode` `[id]` | Set the mode (`rain`, `follow`, `custom`, …). Does not change power |
 | `track` / `exclusive` `[preset]` | Exclusive **Track only** (`rain`, `stormy`, …) |
 | `layer` `<a\|b\|c>` `[shader]` | Custom layer shader (`none` turns a slot off) |
-| `param` `<preset>` `<key>` `[value]` | Read or set a slider. Value is the stored number, or a percent (`80%`). **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition (`sunshower`, `rain`, …), not on `follow`. `nightVisible` is `on`/`off`/`toggle`. Temperature is °C, or °F with an `F` suffix |
-| `reset` | Restore every mode’s sliders (does not change mode, quality, or Hyprland distortion) |
+| `param` `<preset>` `<key>` `[value]` | Read or set a slider. Value is the stored number, or a percent (`80%`). **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition (`sunshower`, `rain`, …), not on `follow`. `nightVisible` is `on`/`off`/`toggle` |
+| `reset` | Restore every mode’s sliders (does not change mode, resolution, detail, Distortion, or target) |
 | `refresh` | Fetch Follow / Exclusive weather again |
 | `preview <preset>` | Switch to Follow and fade to that look |
-| `quality` `[level]` | Set `low`, `medium`, `high`, or `extreme` |
-| `hypr` `[on\|off\|toggle]` | Hyprland distortion |
-| `overlay` | Print compositor state (JSON) |
+| `quality` `[level]` | Preset that sets **both** Resolution and Effect detail: `low`, `medium`, `high`, or `extreme` (`extreme` → Native + Extreme). If they differ, a read returns `resolution,detail` |
+| `resolution` `[level]` | Render scale: `low`, `medium`, `high`, or `native` |
+| `detail` `[level]` or `[shader] [level]` | Effect detail. One level sets every shader that has a Settings row. `rain` / `stormy` / `snow` / `fog` / `sunny` / `fire` / `motes` / `mist` / `stars` / `rainbow` plus a level sets one. Pollen has no row (`unknown-shader`). Blank read is one word if they match |
+| `distortion` / `hypr` `[on\|off\|toggle]` | Distortion on or off. Whole screen: Hyprland `screen_shader`. Wallpaper only: wallpaper warp. `hypr` is the same command |
+| `target` `[screen\|wallpaper\|toggle]` | Whole screen vs wallpaper only |
+| `overlay` | Print compositor state (JSON: mode, `target` screen/wallpaper, `wallpaperWarp`, Distortion, resolution, detail, …) |
 
-IPC always needs the typed string arguments. Pass `""` (or any whitespace) for an optional value to print the current setting instead of changing it. Omitting the argument can fail at the call site.
+IPC always needs the typed string arguments. Pass `""` (or any whitespace) for an optional value to print the current setting instead of changing it. Omitting the argument can fail at the call site. Same blank-read rule for power, mode, track, layer, param, quality, resolution, detail, distortion, hypr, and target.
 
 Examples:
 
@@ -183,29 +201,37 @@ omarchy-shell ogarza.plugins.weather layer a rain
 omarchy-shell ogarza.plugins.weather layer a ""
 omarchy-shell ogarza.plugins.weather param rain refract 0
 omarchy-shell ogarza.plugins.weather param rain refract ""
-omarchy-shell ogarza.plugins.weather param sunny temperature 90F
 omarchy-shell ogarza.plugins.weather param sunshower enableC on
 omarchy-shell ogarza.plugins.weather param sunshower enableC ""
 omarchy-shell ogarza.plugins.weather reset
 omarchy-shell ogarza.plugins.weather preview rain
 omarchy-shell ogarza.plugins.weather quality high
 omarchy-shell ogarza.plugins.weather quality ""
-omarchy-shell ogarza.plugins.weather hypr off
-omarchy-shell ogarza.plugins.weather hypr ""
+omarchy-shell ogarza.plugins.weather resolution native
+omarchy-shell ogarza.plugins.weather resolution ""
+omarchy-shell ogarza.plugins.weather detail medium
+omarchy-shell ogarza.plugins.weather detail rain low
+omarchy-shell ogarza.plugins.weather detail ""
+omarchy-shell ogarza.plugins.weather distortion off
+omarchy-shell ogarza.plugins.weather distortion ""
+omarchy-shell ogarza.plugins.weather target wallpaper
+omarchy-shell ogarza.plugins.weather target ""
 omarchy-shell ogarza.plugins.weather overlay
 ```
 
 IPC `toggle` is the panel. `power` is the overlay.
 
-## Desktop refraction (Hyprland)
+## Distortion
 
-With **Hyprland distortion** on, one combined screen shader stays applied: rain and haze share it, and the unused term is 0. Hyprland only has one shader slot. If another plugin (Phosphor, for example) also sets it, whichever applied last wins.
+On **Whole screen** with **Distortion** on, one screen shader stays applied while rain or storm **Refract** is above 0. Hyprland only has one shader slot. If another plugin (Phosphor, for example) also sets it, whichever applied last wins.
 
-On load and when the panel opens, this plugin scans the other folders under `~/.config/omarchy/plugins` for `.qml` / `.js` that mention `screen_shader`. It skips its own folder. If it finds a sibling, the panel shows a warning with that plugin’s name from `manifest.json`. It does not disable the other plugin or fight for the slot — it is only a heads-up that refraction or haze may disappear if the other shader applied last.
+**Wallpaper only** never applies that slot and clears it as soon as you switch. Distortion then composites warped wallpaper samples for rain (`shaders/wallpaper_warp.frag`). Windows stay unwarped.
 
-The generated files live in `${XDG_STATE_HOME:-~/.local/state}/ogarza.plugins.weather/current.a.frag` and `current.b.frag` (two paths so Hyprland reloads when rain or haze changes). Nothing is written to `~/.config/hypr/`.
+On load and when the panel opens, this plugin scans the other folders under `~/.config/omarchy/plugins` for `.qml` / `.js` that mention `screen_shader`. It skips its own folder. If it finds a sibling, the panel shows a warning with that plugin’s name from `manifest.json`. It does not disable the other plugin or fight for the slot — it is only a heads-up that refraction may disappear if the other shader applied last.
 
-While refraction or haze is on, the monitor redraws every frame so the warp can animate. Clicks through a warped drop or the haze band land a little off from what you see.
+The generated files live in `${XDG_STATE_HOME:-~/.local/state}/ogarza.plugins.weather/current.a.frag` and `current.b.frag` (two paths so Hyprland reloads when rain changes). Nothing is written to `~/.config/hypr/`.
+
+While refraction is on, the monitor redraws every frame so the warp can animate. Clicks through a warped drop land a little off from what you see.
 
 A reboot clears the runtime shader. To drop it by hand from a TTY:
 
@@ -218,7 +244,7 @@ Snow, fog, rainbow, and lightning stay on the overlay. When Hyprland is drawing 
 
 ## Requirements
 
-- A GPU. Mixes use a few fullscreen passes; Refract and Haze add a Hyprland pass on the whole monitor. Use Quality if it feels heavy.
+- A GPU. Mixes use a few fullscreen passes; Refract adds a Hyprland pass on the whole monitor. Use Settings (Resolution, then Effect detail) if it feels heavy.
 - Omarchy with `omarchy-shell` (Quickshell) and Hyprland
 - `curl` for Follow and Exclusive
 - Overlay `.qsb` files in `shaders/` (shipped). To rebuild after editing a `.frag`, or if the panel says they are missing:
@@ -231,7 +257,7 @@ Then reopen the panel. `qsb` is at `/usr/lib/qt6/bin/qsb` (not on PATH).
 
 ## Shaders
 
-Overlay sources are in `shaders/` (`rain.frag`, `snow.frag`, `fog.frag`, `sunny.frag`, `stormy.frag`, `fire.frag`, `rainbow.frag`) with matching committed `.frag.qsb` packs (GLSL / HLSL / MSL, not GPU-vendor binaries). The Hyprland shader is generated by `HyprShader.js`. After you edit a `.frag`, rebuild with `qsb` (or reopen the panel so `scanShaders` does it) and keep the `.qsb` in git.
+Overlay sources are in `shaders/` (`rain.frag`, `snow.frag`, `fog.frag`, `sunny.frag`, `stormy.frag`, `fire.frag`, `motes.frag`, `mist.frag`, `stars.frag`, `pollen.frag`, `rainbow.frag`) with matching committed `.frag.qsb` packs (GLSL / HLSL / MSL, not GPU-vendor binaries). The Hyprland shader is generated by `HyprShader.js`. After you edit a `.frag`, rebuild with `qsb` (or reopen the panel so `scanShaders` does it) and keep the `.qsb` in git.
 
 ## Changelog
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.9.0
+
+- **Pollen** and **Motes** are CPU flocks (one overlay sprite per seed, not a fullscreen gather loop). Density 0–200% is about 4–192 specks. Pollen has **Wind** (`sheen`, 0 = up) and **Tumble**. Motes keep the old home + sin/cos wander and per-speck glow pulse.
+- Settings Effect detail: Motes is wander grid (sprites, not a hash-grid). **Pollen has no Effect detail row** (sprite `quality` is unused). Wallpaper warp follows Rain or Stormy detail — no extra row. IPC `detail pollen …` returns `unknown-shader`. `overlay` JSON includes `target` and `wallpaperWarp`.
+- Motes/Pollen panel sliders apply when you release the bar (rain and other GPU looks still update while dragging).
+- Speck **Size** is about one third of the first sprite pass.
+
+## 1.8.0
+
+- **Mist**, **Stars**, and **Pollen** (manual only, overlay only). Follow never picks them. Custom can stack them.
+- Stars: hash-grid field. **Twinkle amount** is pulse depth (0 = off / pixel-snapped). Rate is fixed. **Shooting stars** pick heading and near/far each pass, about one quarter the first meteor rate. Density 0–240%. IPC `mode sparkle` is Stars. Particle size against `1080 × pixelRatio` like rain.
+- Mist is ground-hugging haze (the inverse of Cloud/Fog). Pollen is lifting dandelion-like seeds (**Tumble**).
+
+## 1.7.0
+
+- **Motes** (manual only): floating glowing specks. **Hue**, **Saturation**, **Size**, **Glow**, **Glow pulse** (per-mote, independent of drift). **Density** is mote count (not glow). Overlay only. Custom can stack it. Follow never picks it.
+- **Settings** (was None): does not change the overlay. Wider panel with chips on the left and a what/cost note on the right. **Resolution** is render scale. **All looks** plus per-shader Effect detail (Rain, Stormy, Fire, Fog, Snow, Sunny, Motes, Rainbow). IPC `detail high` sets all; `detail rain low` sets one. **Quality** still sets Resolution + all detail (`extreme` → Native + Extreme). Overlay off is power or `mode none`.
+- **Wallpaper only** (`target wallpaper`): overlay on the wallpaper layer. Hyprland `screen_shader` is cleared immediately. Rain refraction is `wallpaper_warp.frag`. Notes: `docs/wallpaper-target.md`.
+- **Distortion** (panel + IPC `distortion`; `hypr` still works): rain and storm **Refract** only. Heat haze, Sunny/Fire Haze, and On above are gone.
+
 ## 1.6.5
 
 - End-user agent skill updated so weaker models hit the right IPC: map vague looks (harder rain → density, beautiful → Add Rainbow), keep factory defaults instead of maxing scale, use Custom for fire+clouds, weaken a stacked fire with `param custom strengthA|B|C`, and pair `mode follow` with `power on` after the overlay was off.
