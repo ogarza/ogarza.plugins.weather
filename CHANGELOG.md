@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.0
+
+- **Heat haze removed.** Distortion is rain and storm **Refract** only (Hyprland on Whole screen, `wallpaper_warp.frag` on Wallpaper). Sunny/Fire Haze and On above are gone.
+- **Distortion** (panel switch, IPC `distortion`; `hypr` still works): rain and storm **Refract** on Whole screen (Hyprland `screen_shader`) or Wallpaper (`wallpaper_warp.frag`).
+- **Settings** (panel row, was None): wider panel. Each knob has chips on the left and a what/cost note on the right. **Resolution** is render scale. **All looks** sets Effect detail for every shader; Rain, Stormy, Fire, Fog, Snow, Sunny, and Rainbow have their own Low–Extreme. IPC `detail high` still sets all; `detail rain low` sets one. Old **Quality** IPC still sets Resolution + all detail (`extreme` → Native + Extreme). Overlay off is power or `mode none`.
+- **Wallpaper only** (panel + `target wallpaper`): overlay sits below windows. Hyprland `screen_shader` is cleared immediately. Rain refraction runs in `wallpaper_warp.frag`. Design notes: `docs/wallpaper-target.md`.
+
 ## 1.6.5
 
 - End-user agent skill updated so weaker models hit the right IPC: map vague looks (harder rain → density, beautiful → Add Rainbow), keep factory defaults instead of maxing scale, use Custom for fire+clouds, weaken a stacked fire with `param custom strengthA|B|C`, and pair `mode follow` with `power on` after the overlay was off.

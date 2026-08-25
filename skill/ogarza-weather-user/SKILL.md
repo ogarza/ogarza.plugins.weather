@@ -39,10 +39,13 @@ omarchy-shell ogarza.plugins.weather power on
 | `mode` `[id]` | `none`, `rain`, `snow`, `fog`, `sunny`, `partly`, `overcast`, `sunshower`, `moonlit`, `drizzle`, `squall`, `wintry`, `stormy`, `follow`, `exclusive`, `fire`, `rainbow`, `custom` |
 | `track` `[preset]` | Exclusive track only (not fire/rainbow/custom) |
 | `layer` `<a\|b\|c>` `[shader]` | Custom mode only. Slot shader: `rain`, `snow`, `fog`, `sunny`, `stormy`, `fire`, `rainbow`, or `none` |
-| `param` `<preset>` `<key>` `[value]` | Slider. `%` ok. **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition id (`sunshower`, `rain`, …). `nightVisible` same. Temperature: °C or `90F` |
-| `quality` `[low\|medium\|high\|extreme]` | Cost vs sharpness |
-| `hypr` `[on\|off\|toggle]` | Panel **Hyprland distortion**. Global on/off for desktop warp. Default on. Read with `hypr ""` |
-| `reset` | Default sliders (not mode/quality/hypr) |
+| `param` `<preset>` `<key>` `[value]` | Slider. `%` ok. **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition id (`sunshower`, `rain`, …). `nightVisible` same. |
+| `quality` `[low\|medium\|high\|extreme]` | Sets both Resolution and Effect detail. Read may be `resolution,detail` if they differ |
+| `resolution` `[low\|medium\|high\|native]` | Overlay render scale |
+| `detail` `[level]` or `rain high` etc. | All shaders, or one of rain/stormy/snow/fog/sunny/fire/rainbow. Blank read is one word if they match |
+| `distortion` / `hypr` `[on\|off\|toggle]` | Distortion. Whole screen: Hyprland warp. Wallpaper: cached wallpaper image. Default on. Read with `distortion ""`. `hypr` is the same |
+| `target` `[screen\|wallpaper\|toggle]` | Whole screen vs wallpaper only. Default `screen`. Read with `target ""` |
+| `reset` | Default sliders (not mode/resolution/detail/distortion/target) |
 | `preview` `<preset>` | Follow + fade to that look |
 | `refresh` | Fetch weather again |
 | `overlay` | JSON state |
@@ -56,9 +59,9 @@ Shader presets (`param rain density`, not the mix id):
 | `rain` | `density` (0–2.4), `speed`, `scale` (0–2), `glow` (sheen), `darken`, `refract` (0–1) |
 | `snow` | `density`, `speed`, `scale`, `glow` |
 | `fog` | `density`, `speed`, `scale` |
-| `sunny` | `glow`, `speed`, `density` (dust), `azimuth`, `distance`, `haze` (0–1), `temperature` (10–49 °C) |
+| `sunny` | `glow`, `speed`, `density` (dust), `azimuth`, `distance` |
 | `stormy` | `density` (0–2.4), `speed`, `scale` (0–2), `sheen`, `refract`, `lightning`, `frequency`, `glow` (gloom), `azimuth` |
-| `fire` | `density`, `speed`, `scale`, `glow`, `haze` |
+| `fire` | `density`, `speed`, `scale`, `glow` |
 | `rainbow` | `glow`, `density`, `scale` (0–4), `azimuth`, `lightning` (−2–2 height), `distance`, `speed`, `nightVisible`, `nightTint`, `nightStrength` |
 
 Unless noted, sliders are 0–2. Named mixes take `strengthA` / `strengthB` / `strengthC` on the **condition** id (`param drizzle strengthB`). Standalone Rain uses `param rain strength`. **Custom mix loudness is `param custom strengthA` / `strengthB` / `strengthC` (0–1)** for slots A/B/C. Shader look (density, glow, …) stays on the shader (`param fire glow`). `param fire strength` only affects standalone `mode fire`, not a Custom fire layer.
@@ -70,9 +73,9 @@ Factory defaults (stored numbers). Start from these or from the live value (`par
 | `rain` | strength 1, density 0.8, speed 1, **scale 1**, glow 0.6, darken 1, refract 1, enableC off, strengthC 0.65 |
 | `snow` | strength 1, density 0.8, speed 1, **scale 0.8**, glow 0.3, enableC off, strengthC 0.65 |
 | `fog` | strength 1, density 1, speed 0.9, **scale 1**, enableC off, strengthC 0.65 |
-| `sunny` | strength 1, glow 1, speed 1, density 1.2, azimuth 1.2, distance 1, haze 0.5, temperature 32.2 (°C), enableC off, strengthC 0.65 |
+| `sunny` | strength 1, glow 1, speed 1, density 1.2, azimuth 1.2, distance 1, enableC off, strengthC 0.65 |
 | `stormy` | strength 1, density 1, speed 1.15, **scale 1**, sheen 0.6, refract 1, lightning 1.5, frequency 1, glow 1, azimuth 1, enableC off, strengthC 0.65 |
-| `fire` | strength 1, density 1, speed 0.5, **scale 1**, glow 1, haze 0.5, enableC off, strengthC 0.65 |
+| `fire` | strength 1, density 1, speed 0.5, **scale 1**, glow 1, enableC off, strengthC 0.65 |
 | `rainbow` | strength 1, glow 1, density 1, **scale 1**, azimuth 0.8, lightning 0.65, distance 1, speed 1, nightVisible off, nightTint 1, nightStrength 0.7 |
 
 Mix layer strengths default per condition (enableC off, strengthC 0.65): partly A 0.5 B 0.85; overcast A 1 B 0.18; sunshower A 0.6 B 0.7; moonlit A 0.35 B 0.9; drizzle A 0.55 B 0.5; squall A 0.8 B 0.4; wintry A 1 B 0.5; custom A/B/C 0.7.
@@ -92,19 +95,22 @@ omarchy-shell ogarza.plugins.weather param sunshower enableC off
 
 Follow with live sun shower: still `param sunshower enableC on` (leave `mode follow`). Same pattern for `rain`, `sunny`, `drizzle`, `stormy`, `fire`, and the other mixes.
 
-## Hyprland distortion
+## Distortion
 
-`hypr` is the global toggle (same as the panel switch). Do not edit `~/.config/hypr/`.
+`distortion` is the global toggle (same as the panel switch). `hypr` is an alias. Do not edit `~/.config/hypr/`.
 
-- **On** (default): rain/storm **Refract** and sunny/fire **Haze** can warp the real desktop. Painted rain is skipped while refract is above 0.
-- **Off**: overlay only; refract/haze sliders stay as they are. The screen shader clears.
-- Amount is still the slider: `param rain refract`, `param stormy refract`, `param sunny haze`, `param fire haze`. `refract 0` is painted rain even with `hypr on`. Sunny haze also needs outdoor temperature at or above `param sunny temperature`.
+- **On** (default): rain/storm **Refract** warps. Screen target: Hyprland `screen_shader`. Wallpaper target: `wallpaper_warp.frag` over Omarchy’s background. Painted rain is skipped while refract is above 0.
+- **Off**: overlay only; Refract sliders stay as they are. The screen shader clears.
+- Amount is still the slider: `param rain refract`, `param stormy refract`. `refract 0` is painted rain even with `distortion on`.
 
 ```bash
-omarchy-shell ogarza.plugins.weather hypr ""
-omarchy-shell ogarza.plugins.weather hypr off
-omarchy-shell ogarza.plugins.weather hypr on
-omarchy-shell ogarza.plugins.weather hypr toggle
+omarchy-shell ogarza.plugins.weather distortion ""
+omarchy-shell ogarza.plugins.weather distortion off
+omarchy-shell ogarza.plugins.weather distortion on
+omarchy-shell ogarza.plugins.weather distortion toggle
+omarchy-shell ogarza.plugins.weather target ""
+omarchy-shell ogarza.plugins.weather target wallpaper
+omarchy-shell ogarza.plugins.weather target screen
 ```
 
 ## Custom (three layers)
@@ -119,7 +125,7 @@ omarchy-shell ogarza.plugins.weather layer b ""
 omarchy-shell ogarza.plugins.weather layer c ""
 ```
 
-How loud that slot is: `param custom strengthA` (slot a), `strengthB` (b), `strengthC` (c). Default 0.7. How the fire *looks* (flames, glow, haze): `param fire …`.
+How loud that slot is: `param custom strengthA` (slot a), `strengthB` (b), `strengthC` (c). Default 0.7. How the fire *looks* (flames, glow): `param fire …`.
 
 Fire and clouds:
 
@@ -148,7 +154,7 @@ If fire is on A, use `strengthA`. Do not set `param fire strength` for this.
 - Rainbow on Sun shower → `param sunshower enableC on`. Follow: same, do not switch mode.
 - “Fire and clouds” / fire + fog → Custom: `layer a fog`, `layer b fire`, `layer c none`. Then weaker fire → `param custom strengthB` (the fire slot), not `param fire strength`.
 - Stack rain, fog, and fire → Custom, three layers.
-- Turn off desktop warp → `hypr off`. Weaker warp → lower `param rain refract` / `param sunny haze`.
+- Turn off desktop warp → `distortion off`. Weaker warp → lower `param rain refract`.
 - Follow the forecast → `mode follow` **and** `power on` (mode does not enable the overlay). After they turned weather off, both:
 
 ```bash

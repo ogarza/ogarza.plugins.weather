@@ -29,9 +29,22 @@ Item {
   property string customShaderB: "fog"
   property string customShaderC: "none"
   property string quality: "high"
+  property string resolution: "high"
+  property string detail: "high"
+  property var shaderDetail: Model.defaultShaderDetail("high")
   property bool hyprEnabled: true
-  readonly property real qualityScale: Model.qualityScale(root.quality)
-  readonly property bool qualityDownscale: root.quality !== "extreme"
+  property string overlayTarget: "screen"
+  readonly property bool wallpaperTarget: root.overlayTarget === "wallpaper"
+  readonly property string wallpaperLink: home + "/.local/state/omarchy/current/background"
+  property string wallpaperPath: ""
+  readonly property url wallpaperFileUrl: {
+    var p = String(root.wallpaperPath || "")
+    if (!p) return ""
+    if (p.indexOf("file:") === 0) return p
+    return "file://" + p
+  }
+  readonly property real qualityScale: Model.qualityScale(root.resolution)
+  readonly property bool qualityDownscale: root.resolution !== "native"
   property var shaderFiles: []
   property bool shaderScanDone: false
   readonly property string qsbBakerWarning: root.shaderScanDone ? Model.qsbBakerWarning(root.shaderFiles) : ""
@@ -85,9 +98,21 @@ Item {
     || (overlayFade.running && (Model.isVisualPreset(root.overlayFromPreset) || Model.isVisualPreset(root.overlayToPreset)))
 
   readonly property string hyprKind: Model.screenShaderKind(
-    root.overlayToPreset, root.params, root.customShaderA, root.customShaderB, root.customShaderC, root.outdoorTempC)
+    root.overlayToPreset, root.params, root.customShaderA, root.customShaderB, root.customShaderC)
 
-  readonly property bool needsScreenShader: root.persistLoaded && root.hyprEnabled
+  readonly property bool needsScreenShader: root.persistLoaded && root.hyprEnabled && !root.wallpaperTarget
+  readonly property bool wallpaperWarpWanted: root.persistLoaded && root.hyprEnabled && root.wallpaperTarget
+    && root.overlayVisible && Model.visualNeedsScreenShader(
+      root.overlayToPreset, root.params, root.customShaderA, root.customShaderB, root.customShaderC)
+  readonly property string rainWarpDetail: Model.detailForShader(
+    root.shaderDetail,
+    Model.rainRefractSource(root.overlayToPreset, root.params, root.customShaderA, root.customShaderB, root.customShaderC) || "rain",
+    root.detail)
+
+  readonly property var wallpaperWarpInput: Model.hyprShaderInput(
+    root.overlayToPreset, root.params, root.rainWarpDetail,
+    root.customShaderA, root.customShaderB, root.customShaderC,
+    root.hyprPixelRatio)
 
   property real hyprFadeAt: -1
   property real hyprTimeOffset: 0
@@ -100,7 +125,7 @@ Item {
     ? Math.max(0.05, root.overlayFadeDurationMs / 1000)
     : Model.hyprRainFadeSec
 
-  readonly property bool hyprTick: root.needsScreenShader || root.hyprApplied
+  readonly property bool hyprTick: root.needsScreenShader || root.hyprApplied || root.wallpaperWarpWanted
 
   readonly property string effectivePreset: {
     if (root.mode === "follow") return root.weatherPreset || "sunny"
@@ -213,9 +238,13 @@ Item {
       fading: overlayFade.running,
       primed: root.overlayPrimed,
       quality: root.quality,
+      resolution: root.resolution,
+      detail: root.detail,
+      shaderDetail: root.shaderDetail,
       scale: root.qualityScale,
       active: root.active,
       hyprEnabled: root.hyprEnabled,
+      target: root.overlayTarget,
       hypr: root.hyprKind,
       hyprApplied: root.hyprApplied,
       hyprDamage: root.needsScreenShader ? 0 : root.hyprBaseDamage,
@@ -277,6 +306,7 @@ Item {
       return "Ex. · " + wanted
     }
     if (!root.active) return "Overlay off"
+    if (root.mode === "none") return "Overlay off"
     if (root.mode === "follow")
       return "Following · " + Model.labelForPreset(root.weatherPreset || "sunny", root.nightFactor)
     if (root.mode === "sunny") return Model.labelForPreset("sunny", root.nightFactor)
@@ -303,7 +333,6 @@ Item {
   property int weatherRetries: 0
   property real nightFactor: 0
   property real outdoorTempC: NaN
-  readonly property bool needsOutdoorTemp: Model.sunnyHazeWanted(root.params)
   readonly property int weatherResponseMaxBytes: 262144
 
   function weatherFetchCommand(url, timeoutSec) {
@@ -362,8 +391,13 @@ Item {
         root.customShaderC = "none"
       else
         root.customShaderC = Model.normalizedCustomLayer(entry.customShaderC, "none")
-      root.quality = Model.normalizedQuality(entry.quality)
+      var qSplit = Model.migrateQualitySettings(entry)
+      root.resolution = qSplit.resolution
+      root.detail = qSplit.detail
+      root.shaderDetail = Model.mergeShaderDetail(entry.shaderDetail, qSplit.detail)
+      root.quality = Model.qualityPresetFromParts(root.resolution, root.detail)
       root.hyprEnabled = entry.hyprEnabled !== false
+      root.overlayTarget = Model.normalizedTarget(entry.overlayTarget || entry.target)
       root.params = Model.mergeParams(entry.params)
       if (typeof entry.hyprBaseDamage === "number")
         root.hyprBaseDamage = entry.hyprBaseDamage
@@ -371,7 +405,8 @@ Item {
     root.persistLoaded = true
     if (root.hyprBaseDamage < 0) baselineProc.running = true
     else root.scheduleHyprSync()
-    if (root.liveWeatherMode || root.needsOutdoorTemp) Qt.callLater(root.refreshWeather)
+    root.refreshWallpaperPath()
+    if (root.liveWeatherMode) Qt.callLater(root.refreshWeather)
   }
 
   function persistSettings() {
@@ -388,7 +423,11 @@ Item {
     settings.customShaderB = root.customShaderB
     settings.customShaderC = root.customShaderC
     settings.quality = root.quality
+    settings.resolution = root.resolution
+    settings.detail = root.detail
+    settings.shaderDetail = root.shaderDetail
     settings.hyprEnabled = root.hyprEnabled
+    settings.overlayTarget = root.overlayTarget
     settings.params = root.params
     settings.hyprBaseDamage = root.hyprBaseDamage
     delete settings.customShader
@@ -414,14 +453,6 @@ Item {
     if (Model.isCheckParam(k)) {
       var cur = Model.paramValue(root.params, preset, k, 0) >= 0.5
       return root.parseOnOffToggle(text, cur) ? 1 : 0
-    }
-    var lower = text.toLowerCase()
-    if (k === "temperature") {
-      var imperial = /f$/.test(lower)
-      var n = parseFloat(text)
-      if (isNaN(n)) return Model.paramValue(root.params, preset, k, 32.2)
-      if (imperial || n > 49) return (n - 32) * 5 / 9
-      return n
     }
     if (/%$/.test(text)) return parseFloat(text) / 100
     return parseFloat(text)
@@ -453,10 +484,41 @@ Item {
     return root.quality
   }
 
+  function ipcResolution(raw) {
+    var v = root.ipcTrim(raw)
+    if (v) root.setResolution(v)
+    return root.resolution
+  }
+
+  function ipcDetail(raw) {
+    var v = root.ipcTrim(raw)
+    if (!v) return Model.formatShaderDetail(root.shaderDetail)
+    var bits = v.split(/\s+/)
+    if (bits.length >= 2) {
+      var sh = Model.normalizedShaderId(bits[0])
+      if (sh) {
+        root.setShaderDetail(sh, bits[1])
+        return Model.detailForShader(root.shaderDetail, sh, root.detail)
+      }
+    }
+    root.setDetail(v)
+    return Model.formatShaderDetail(root.shaderDetail)
+  }
+
   function ipcHypr(raw) {
     var v = root.ipcTrim(raw)
     if (v) root.setHyprEnabled(root.parseOnOffToggle(v, root.hyprEnabled))
     return root.hyprEnabled ? "on" : "off"
+  }
+
+  function ipcTarget(raw) {
+    var v = root.ipcTrim(raw).toLowerCase()
+    if (!v) return root.overlayTarget
+    if (v === "toggle")
+      root.setOverlayTarget(root.wallpaperTarget ? "screen" : "wallpaper")
+    else
+      root.setOverlayTarget(v)
+    return root.overlayTarget
   }
 
   function ipcLayer(slotRaw, shader) {
@@ -543,10 +605,52 @@ Item {
     setActive(!root.active)
   }
 
+  function syncQualityPreset() {
+    root.quality = Model.qualityPresetFromParts(root.resolution, root.detail)
+  }
+
   function setQuality(value) {
     var next = Model.normalizedQuality(value)
-    if (root.quality === next) return
-    root.quality = next
+    var res = Model.resolutionFromQuality(next)
+    var det = Model.normalizedDetail(next)
+    if (root.resolution === res && root.detail === det
+        && Model.shaderDetailAllEqual(root.shaderDetail)
+        && Model.detailForShader(root.shaderDetail, "rain", det) === det)
+      return
+    root.resolution = res
+    root.detail = det
+    root.shaderDetail = Model.defaultShaderDetail(det)
+    root.syncQualityPreset()
+    persistSettings()
+  }
+
+  function setResolution(value) {
+    var next = Model.normalizedResolution(value)
+    if (root.resolution === next) return
+    root.resolution = next
+    root.syncQualityPreset()
+    persistSettings()
+  }
+
+  function setDetail(value) {
+    var next = Model.normalizedDetail(value)
+    root.detail = next
+    root.shaderDetail = Model.defaultShaderDetail(next)
+    root.syncQualityPreset()
+    persistSettings()
+  }
+
+  function setShaderDetail(shader, value) {
+    var sh = Model.normalizedShaderId(shader)
+    if (!sh) return
+    var next = Model.normalizedDetail(value)
+    var copy = Model.mergeShaderDetail(root.shaderDetail, root.detail)
+    if (copy[sh] === next) return
+    copy[sh] = next
+    root.shaderDetail = copy
+    if (Model.shaderDetailAllEqual(copy))
+      root.detail = next
+    root.syncQualityPreset()
     persistSettings()
   }
 
@@ -555,6 +659,18 @@ Item {
     if (root.hyprEnabled === next) return
     root.hyprEnabled = next
     persistSettings()
+  }
+
+  function setOverlayTarget(value) {
+    var next = Model.normalizedTarget(value)
+    if (root.overlayTarget === next) return
+    root.overlayTarget = next
+    persistSettings()
+    root.refreshWallpaperPath()
+  }
+
+  function refreshWallpaperPath() {
+    if (!wallpaperReadlink.running) wallpaperReadlink.running = true
   }
 
   function setMode(value) {
@@ -639,7 +755,7 @@ Item {
   }
 
   function refreshWeather() {
-    if (!root.liveWeatherMode && !root.needsOutdoorTemp) return
+    if (!root.liveWeatherMode) return
     if (!root.locationReady) return
 
     var lat = parseFloat(String(root.configuredLocationState.latitude))
@@ -704,12 +820,11 @@ Item {
     var input = Model.hyprShaderInput(
       root.overlayToPreset,
       root.params,
-      root.quality,
+      root.rainWarpDetail,
       root.customShaderA,
       root.customShaderB,
       root.customShaderC,
-      root.hyprPixelRatio,
-      root.outdoorTempC
+      root.hyprPixelRatio
     )
     return input
   }
@@ -752,13 +867,6 @@ Item {
     return root.hyprMixNow(last.rainFrom, last.rainTo)
   }
 
-  function hyprHazeNow() {
-    var last = root.hyprTrackInput()
-    var from = last.hazeFrom != null ? last.hazeFrom : 0
-    var to = last.hazeTo != null ? last.hazeTo : last.haze
-    return root.hyprMixNow(from, to)
-  }
-
   function hyprClockNow() {
     if (!root.hyprApplied || !(root.hyprClockWall > 0))
       return root.hyprTimeOffset
@@ -769,7 +877,7 @@ Item {
     input = input || {}
     return [input.density, input.speed, input.scale, input.glow, input.darken, input.strength,
       input.refract, input.quality, input.stormRain ? 1 : 0, input.azimuth,
-      input.fireHaze ? 1 : 0, input.pixelRatio].join("|")
+      input.pixelRatio].join("|")
   }
 
   function writeHyprShader(input) {
@@ -802,17 +910,25 @@ Item {
   function renderHypr() {
     if (!root.persistLoaded) return
 
+    // Wallpaper never owns decoration.screen_shader (it would still warp windows).
+    // Clear immediately — a rain fade would keep the Hyprland program on screen.
+    if (root.wallpaperTarget) {
+      hyprClearTimer.stop()
+      if (root.hyprApplied)
+        root.clearHyprShader()
+      return
+    }
+
     if (!root.hyprEnabled) {
       if (!root.hyprApplied) return
       var rainNowOff = root.hyprRainNow()
-      var hazeNowOff = root.hyprHazeNow()
-      if (rainNowOff < 0.004 && hazeNowOff < 0.004) {
+      if (rainNowOff < 0.004) {
         hyprClearTimer.stop()
         root.clearHyprShader()
         return
       }
       var lastOff = root.hyprTrackInput()
-      if (Math.abs(Number(lastOff.rainTo) || 0) < 0.002 && Math.abs(Number(lastOff.hazeTo) || 0) < 0.002) {
+      if (Math.abs(Number(lastOff.rainTo) || 0) < 0.002) {
         var left = Math.max(0, (Number(lastOff.fadeSec) || 0) * (1 - root.hyprFadeU()))
         hyprClearTimer.interval = Math.round(left * 1000) + 80
         hyprClearTimer.restart()
@@ -820,9 +936,7 @@ Item {
       }
       var dying = root.copyHyprInput(lastOff)
       dying.rainFrom = rainNowOff
-      dying.hazeFrom = hazeNowOff
       dying.rainTo = 0
-      dying.hazeTo = 0
       dying.fadeSec = Model.hyprRainFadeSec
       dying.timeOffset = root.hyprClockNow()
       if (!root.writeHyprShader(dying)) {
@@ -837,19 +951,15 @@ Item {
     hyprClearTimer.stop()
     var want = root.hyprInput()
     var wantRain = root.hyprHasRain(want.kind) ? 1 : 0
-    var wantHaze = Number(want.haze) || 0
     var last = root.hyprTrackInput()
     var rainNow = root.hyprApplied ? root.hyprRainNow() : 0
-    var hazeNow = root.hyprApplied ? root.hyprHazeNow() : 0
     var targetingSame = root.hyprApplied
       && Math.abs((Number(last.rainTo) || 0) - wantRain) < 0.002
-      && Math.abs((Number(last.hazeTo != null ? last.hazeTo : last.haze) || 0) - wantHaze) < 0.002
     var lookSame = root.hyprLookKey(want) === root.hyprLookKey(last)
     var rainGate = Math.abs(rainNow - wantRain) > 0.004
-    var hazeGate = (hazeNow <= 0.001) !== (wantHaze <= 0.001)
     if (root.hyprApplied && targetingSame && !root.hyprNeedRebind) {
       if (lookSame) return
-      if (!rainGate && !hazeGate && wantRain < 0.002 && wantHaze < 0.002) return
+      if (!rainGate && wantRain < 0.002) return
     }
     var input = root.copyHyprInput(want)
     var dyingRain = rainNow > 0.01 || Number(last.rainFrom) > 0.01 || Number(last.rainTo) > 0.01
@@ -866,9 +976,7 @@ Item {
     }
     input.rainFrom = rainNow
     input.rainTo = wantRain
-    input.hazeFrom = hazeNow
-    input.hazeTo = wantHaze
-    input.fadeSec = (rainGate || hazeGate) ? root.hyprFadeSec : 0
+    input.fadeSec = rainGate ? root.hyprFadeSec : 0
     input.timeOffset = root.hyprApplied ? root.hyprClockNow() : 0
     root.hyprNeedRebind = false
     root.writeHyprShader(input)
@@ -918,11 +1026,15 @@ Item {
   onModeChanged: root.syncOverlayLayers()
   onOverlayWantedChanged: root.syncOverlayLayers()
   onNeedsScreenShaderChanged: root.scheduleHyprNow()
+  onWallpaperTargetChanged: {
+    root.refreshWallpaperPath()
+    root.scheduleHyprNow()
+  }
   onHyprKindChanged: root.scheduleHyprNow()
   onOverlayToPresetChanged: root.scheduleHyprNow()
   onQualityChanged: root.scheduleHyprSync()
-  onOutdoorTempCChanged: root.scheduleHyprSync()
-  onNeedsOutdoorTempChanged: if (root.needsOutdoorTemp) root.refreshWeather()
+  onDetailChanged: root.scheduleHyprSync()
+  onShaderDetailChanged: root.scheduleHyprSync()
   onCustomShaderAChanged: root.scheduleHyprSync()
   onCustomShaderBChanged: root.scheduleHyprSync()
   onCustomShaderCChanged: root.scheduleHyprSync()
@@ -955,7 +1067,7 @@ Item {
     readonly property string preset: Model.shaderForVisualSlot(visual, slot, root.customShaderA, root.customShaderB, root.customShaderC, root.params)
     readonly property string shaderFile: Model.shaderFileForPreset(preset)
     readonly property bool skipDrops: root.persistLoaded &&
-      Model.overlaySkipsRainDrops(root.hyprEnabled, preset, root.params)
+      Model.overlaySkipsRainDrops(root.hyprEnabled, root.wallpaperTarget, preset, root.params)
 
     anchors.fill: parent
     blending: true
@@ -966,7 +1078,7 @@ Item {
     property vector2d resolution: {
       var scr = screenInfo
       var dpr = scr && scr.devicePixelRatio ? Number(scr.devicePixelRatio) : 1.0
-      var sz = Model.qualityTextureSize(width, height, dpr, root.quality)
+      var sz = Model.qualityTextureSize(width, height, dpr, root.resolution)
       return Qt.vector2d(sz.w, sz.h)
     }
     property real pixelRatio: {
@@ -1011,7 +1123,7 @@ Item {
     }
     property real nightTint: Model.paramValue(root.params, "rainbow", "nightTint", 1)
     property real nightStrength: Model.paramValue(root.params, "rainbow", "nightStrength", 0.7)
-    property real quality: Model.qualityRank(root.quality)
+    property real quality: Model.qualityRank(Model.detailForShader(root.shaderDetail, preset, root.detail))
   }
 
   FileView {
@@ -1023,12 +1135,12 @@ Item {
       root.configuredLocationState = Model.parseLocationFile(text())
       root.weatherRetries = 0
       root.locationReady = true
-      if (root.liveWeatherMode || root.needsOutdoorTemp) root.refreshWeather()
+      if (root.liveWeatherMode) root.refreshWeather()
     }
     onLoadFailed: {
       root.configuredLocationState = Model.parseLocationFile("")
       root.locationReady = true
-      if (root.liveWeatherMode || root.needsOutdoorTemp) root.refreshWeather()
+      if (root.liveWeatherMode) root.refreshWeather()
     }
   }
 
@@ -1070,12 +1182,12 @@ Item {
   Timer {
     id: weatherRetryTimer
     interval: 2500
-    onTriggered: if (root.liveWeatherMode || root.needsOutdoorTemp) root.refreshWeather()
+    onTriggered: if (root.liveWeatherMode) root.refreshWeather()
   }
 
   Timer {
     interval: 15 * 60 * 1000
-    running: root.liveWeatherMode || root.needsOutdoorTemp
+    running: root.liveWeatherMode
     repeat: true
     onTriggered: {
       root.weatherRetries = 0
@@ -1093,7 +1205,36 @@ Item {
 
   FrameAnimation {
     id: clock
-    running: root.overlayVisible
+    running: root.overlayVisible || root.wallpaperWarpWanted
+  }
+
+  FileView {
+    path: root.wallpaperLink
+    watchChanges: true
+    printErrors: false
+    onFileChanged: root.refreshWallpaperPath()
+    onLoaded: root.refreshWallpaperPath()
+  }
+
+  Process {
+    id: wallpaperReadlink
+    running: false
+    command: ["readlink", "-f", root.wallpaperLink]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var next = String(text || "").trim()
+        if (next !== root.wallpaperPath)
+          root.wallpaperPath = next
+      }
+    }
+  }
+
+  Timer {
+    interval: 1000
+    repeat: true
+    running: root.wallpaperWarpWanted
+    onTriggered: root.refreshWallpaperPath()
   }
 
   Process {
@@ -1157,7 +1298,7 @@ Item {
     interval: 680
     repeat: false
     onTriggered: {
-      if (!root.hyprEnabled && root.hyprApplied)
+      if (root.hyprApplied && (!root.hyprEnabled || root.wallpaperTarget))
         root.clearHyprShader()
     }
   }
@@ -1238,10 +1379,78 @@ Item {
       }
 
       WlrLayershell.namespace: "posterectus"
-      WlrLayershell.layer: WlrLayer.Overlay
+      WlrLayershell.layer: root.wallpaperTarget ? WlrLayer.Bottom : WlrLayer.Overlay
       WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
       exclusionMode: ExclusionMode.Ignore
       mask: Region {}
+
+      Image {
+        id: wallImage
+        anchors.fill: parent
+        source: root.wallpaperFileUrl
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        cache: true
+        onStatusChanged: {
+          if (status === Image.Ready)
+            wallCache.scheduleUpdate()
+        }
+      }
+
+      ShaderEffectSource {
+        id: wallCache
+        sourceItem: wallImage
+        hideSource: true
+        live: root.wallpaperWarpWanted
+        smooth: true
+        visible: false
+        width: panel.width
+        height: panel.height
+        function refresh() {
+          if (wallImage.status === Image.Ready)
+            wallCache.scheduleUpdate()
+        }
+        Component.onCompleted: refresh()
+        onWidthChanged: refresh()
+        onHeightChanged: refresh()
+      }
+
+      Connections {
+        target: root
+        function onWallpaperPathChanged() { wallCache.refresh() }
+        function onWallpaperWarpWantedChanged() { if (root.wallpaperWarpWanted) wallCache.refresh() }
+      }
+
+      ShaderEffect {
+        id: wallWarp
+        anchors.fill: parent
+        blending: true
+        visible: root.wallpaperWarpWanted && wallImage.status === Image.Ready && root.wallpaperPath !== ""
+        fragmentShader: Qt.resolvedUrl("shaders/wallpaper_warp.frag.qsb")
+        property variant source: wallCache
+        property real time: clock.elapsedTime
+        property vector2d resolution: {
+          var scr = panel.screen
+          var dpr = scr && scr.devicePixelRatio ? Number(scr.devicePixelRatio) : 1.0
+          return Qt.vector2d(Math.max(1, Math.round(width * dpr)), Math.max(1, Math.round(height * dpr)))
+        }
+        property real pixelRatio: {
+          var scr = panel.screen
+          var dpr = scr && scr.devicePixelRatio ? Number(scr.devicePixelRatio) : 1.0
+          return Math.max(0.05, dpr)
+        }
+        property real strength: Number(root.wallpaperWarpInput.strength) || 0
+        property real density: Number(root.wallpaperWarpInput.density) || 0
+        property real speed: Number(root.wallpaperWarpInput.speed) || 0
+        property real scale: Number(root.wallpaperWarpInput.scale) || 1
+        property real glow: Number(root.wallpaperWarpInput.glow) || 0
+        property real darken: Number(root.wallpaperWarpInput.darken) || 1
+        property real refract: Number(root.wallpaperWarpInput.refract) || 0
+        property real rainAmt: root.hyprHasRain(root.wallpaperWarpInput.kind) ? 1 : 0
+        property real stormRain: root.wallpaperWarpInput.stormRain ? 1 : 0
+        property real azimuth: Number(root.wallpaperWarpInput.azimuth) || 1
+        property real quality: Number(root.wallpaperWarpInput.quality) || 2
+      }
 
       Item {
         id: fxStack
@@ -1251,7 +1460,7 @@ Item {
         layer.smooth: true
         layer.textureSize: {
           var dpr = panel.screen && panel.screen.devicePixelRatio ? panel.screen.devicePixelRatio : 1
-          var sz = Model.qualityTextureSize(width, height, dpr, root.quality)
+          var sz = Model.qualityTextureSize(width, height, dpr, root.resolution)
           return Qt.size(sz.w, sz.h)
         }
 

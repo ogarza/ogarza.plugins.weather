@@ -4,22 +4,22 @@
 var pluginId = "ogarza.plugins.weather"
 
 var modes = [
-  { value: "none", label: "None", icon: "󰅖", description: "No overlay. The desktop stays clear until you pick an effect." },
-  { value: "rain", label: "Rain", icon: "󰖗", description: "Beads and trails on glass. With Hyprland distortion on and Refract above 0, drops warp the real desktop (painted rain is skipped so it is not drawn twice). Clicks through a warped drop land a little off. Refract 0 is the painted look only." },
-  { value: "snow", label: "Snow", icon: "󰖘", description: "Falling flakes with a bit of depth. Overlay only — no desktop warp. Lower Quality draws fewer flake layers." },
+  { value: "none", label: "Settings", icon: "󰒓", description: "Compositor knobs and a cost guide for each shader. Choosing Settings does not change the overlay — pick a mode or use power to turn weather off. IPC mode none still clears the overlay." },
+  { value: "rain", label: "Rain", icon: "󰖗", description: "Beads and trails on glass. With Distortion on and Refract above 0, drops warp the real desktop (painted rain is skipped so it is not drawn twice). Clicks through a warped drop land a little off. Refract 0 is the painted look only." },
+  { value: "snow", label: "Snow", icon: "󰖘", description: "Falling flakes with a bit of depth. Overlay only — no desktop warp. Lower Effect detail draws fewer flake layers." },
   { value: "fog", label: "Cloud/Fog", icon: "󰖑", description: "Soft FBM clouds, denser toward the upper sky, with the very top and bottom faded so the desktop stays readable. Overlay only." },
-  { value: "sunny", label: "Sunny", icon: "󰖙", description: "Warm glow, faint shafts, and dust. Over civil twilight (sun 0° to −6°, a few minutes) the color eases to cool moonlight. Optional heat haze warps the desktop when Hyprland distortion is on and outdoor temperature is at or above On above (default 90°F / 32.2°C)." },
-  { value: "partly", label: "Partly cloudy", icon: "󰖕", description: "Clouds plus sun. The sun layer uses the same twilight shift to moonlight as Sunny, including the haze temperature gate. In Follow, this condition becomes Moonlit clouds after sunset." },
-  { value: "overcast", label: "Overcast", icon: "󰖐", description: "Heavy clouds with a faint sun (same twilight-to-moonlight shift and haze gate as Sunny)." },
+  { value: "sunny", label: "Sunny", icon: "󰖙", description: "Warm glow, faint shafts, and dust. Over civil twilight (sun 0° to −6°, a few minutes) the color eases to cool moonlight." },
+  { value: "partly", label: "Partly cloudy", icon: "󰖕", description: "Clouds plus sun. The sun layer uses the same twilight shift to moonlight as Sunny. In Follow, this condition becomes Moonlit clouds after sunset." },
+  { value: "overcast", label: "Overcast", icon: "󰖐", description: "Heavy clouds with a faint sun (same twilight-to-moonlight shift as Sunny)." },
   { value: "sunshower", label: "Sun shower", icon: "󰖖", description: "Sun and rain together. Rain refraction follows the Rain rules. Add Rainbow is off by default; that bow fades after sunset unless After sunset is on." },
-  { value: "moonlit", label: "Moonlit clouds", icon: "󰖔", description: "Clouds with a cool moon (the sun shader forced to night). Haze still uses Sunny’s On above temperature. Follow uses this for partly cloudy after sunset. Exclusive treats Partly cloudy and Moonlit clouds as a match for each other." },
-  { value: "drizzle", label: "Drizzle", icon: "󰖑", description: "Light rain through thin clouds. Rain refraction follows the Rain rules (Hyprland warp skips the painted drops)." },
+  { value: "moonlit", label: "Moonlit clouds", icon: "󰖔", description: "Clouds with a cool moon (the sun shader forced to night). Follow uses this for partly cloudy after sunset. Exclusive treats Partly cloudy and Moonlit clouds as a match for each other." },
+  { value: "drizzle", label: "Drizzle", icon: "󰖑", description: "Light rain through thin clouds. Rain refraction follows the Rain rules (Distortion skips the painted drops)." },
   { value: "squall", label: "Snow squall", icon: "󰼶", description: "Snow driven through clouds. Overlay only — snow does not warp the desktop." },
   { value: "wintry", label: "Wintry mix", icon: "󰙿", description: "Rain and snow together. The rain layer can still refract the desktop; painted rain is skipped while that warp is live." },
   { value: "stormy", label: "Stormy", icon: "󰖓", description: "Diagonal rain, a dark Gloom wash, lightning bolts, and a brief sky flash. Refraction follows the Rain rules; bolts stay on the overlay (no desktop shake). Angle is how much the rain leans, not bolt direction." },
   { value: "follow", label: "Follow", icon: "󰔏", description: "Matches the live forecast for your Omarchy location (Open-Meteo with coords, else wttr). Waits for location before the first fetch. Clear sky is Sunny; thunder is Stormy; partly cloudy becomes Moonlit clouds after sunset. Never picks Fire, Rainbow, or Custom. Forecast changes fade over about ten seconds." },
   { value: "exclusive", label: "Exclusive", icon: "󰮯", description: "Same forecast as Follow, but the overlay runs only when live weather matches Track only. This panel previews the tracked look until you close it. Partly cloudy and Moonlit clouds count as a match for each other. Fire, Rainbow, and Custom cannot be tracked." },
-  { value: "fire", label: "Fire", icon: "󰈸", description: "Flames along the bottom of the screen. Optional heat haze always uses the Fire Haze slider (not gated by outdoor temperature). Manual only — Follow never picks this." },
+  { value: "fire", label: "Fire", icon: "󰈸", description: "Flames along the bottom of the screen. Manual only — Follow never picks this." },
   { value: "rainbow", label: "Rainbow", icon: "󰟗", description: "Primary and secondary bows opposite the sun. Invisible after sunset unless After sunset is on; then Night glow cools the bands and Night strength sets how visible they stay. Manual only — Follow never picks this. Add Rainbow on other modes shares these sliders." },
   { value: "custom", label: "Custom", icon: "󰣖", description: "Stack up to three shaders. None turns a layer off. Sliders are shared with the standalone modes (changing rain density here also changes Rain). Manual only — Follow never picks this." }
 ]
@@ -27,7 +27,7 @@ var modes = [
 // Bar glyph: creation sparkle = desktop effects, not a forecast (those stay in the panel).
 var barIcon = "󰙴"
 
-// Overlay render scale. Extreme is native pixels with no offscreen blit.
+// IPC quality preset still sets both axes (extreme → native resolution + extreme detail).
 var qualityLevels = [
   { value: "low", label: "Low" },
   { value: "medium", label: "Medium" },
@@ -42,13 +42,76 @@ var qualityValues = {
   extreme: true
 }
 
+var resolutionLevels = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "native", label: "Native" }
+]
+
+var resolutionValues = {
+  low: true,
+  medium: true,
+  high: true,
+  native: true
+}
+
+var detailLevels = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "extreme", label: "Extreme" }
+]
+
 function normalizedQuality(value) {
   var v = String(value || "").toLowerCase()
   return qualityValues[v] ? v : "high"
 }
 
+function normalizedResolution(value) {
+  var v = String(value || "").toLowerCase()
+  if (v === "extreme" || v === "full" || v === "100") return "native"
+  return resolutionValues[v] ? v : "high"
+}
+
+function normalizedDetail(value) {
+  var v = String(value || "").toLowerCase()
+  if (v === "native") return "extreme"
+  return qualityValues[v] ? v : "high"
+}
+
+function resolutionFromQuality(value) {
+  var q = normalizedQuality(value)
+  return q === "extreme" ? "native" : q
+}
+
+function migrateQualitySettings(entry) {
+  var src = entry || {}
+  var hasRes = src.resolution !== undefined && src.resolution !== null && String(src.resolution) !== ""
+  var hasDet = src.detail !== undefined && src.detail !== null && String(src.detail) !== ""
+  var q = normalizedQuality(src.quality)
+  return {
+    resolution: hasRes ? normalizedResolution(src.resolution) : resolutionFromQuality(q),
+    detail: hasDet ? normalizedDetail(src.detail) : q
+  }
+}
+
+function qualityPresetFromParts(resolution, detail) {
+  var res = normalizedResolution(resolution)
+  var det = normalizedDetail(detail)
+  var resKey = res === "native" ? "extreme" : res
+  if (resKey === det) return resKey
+  return res + "," + det
+}
+
+function normalizedTarget(value) {
+  var v = String(value || "").toLowerCase()
+  if (v === "wallpaper" || v === "background" || v === "desktop") return "wallpaper"
+  return "screen"
+}
+
 function qualityRank(value) {
-  var v = normalizedQuality(value)
+  var v = normalizedDetail(value)
   if (v === "low") return 0
   if (v === "medium") return 1
   if (v === "high") return 2
@@ -56,7 +119,7 @@ function qualityRank(value) {
 }
 
 function qualityScale(value) {
-  var v = normalizedQuality(value)
+  var v = normalizedResolution(value)
   if (v === "low") return 0.33
   if (v === "medium") return 0.5
   if (v === "high") return 0.75
@@ -71,6 +134,22 @@ function indexOfQuality(value) {
   return 2
 }
 
+function indexOfResolution(value) {
+  var v = normalizedResolution(value)
+  for (var i = 0; i < resolutionLevels.length; i++) {
+    if (resolutionLevels[i].value === v) return i
+  }
+  return 2
+}
+
+function indexOfDetail(value) {
+  var v = normalizedDetail(value)
+  for (var i = 0; i < detailLevels.length; i++) {
+    if (detailLevels[i].value === v) return i
+  }
+  return 2
+}
+
 function qualityTextureSize(width, height, devicePixelRatio, value) {
   var s = qualityScale(value)
   var dpr = Math.max(1, Number(devicePixelRatio) || 1)
@@ -78,6 +157,130 @@ function qualityTextureSize(width, height, devicePixelRatio, value) {
     w: Math.max(1, Math.round(Number(width) * dpr * s)),
     h: Math.max(1, Math.round(Number(height) * dpr * s))
   }
+}
+
+function fieldsForSettings() {
+  return [
+    {
+      key: "resolution",
+      label: "Resolution",
+      kind: "enum",
+      options: resolutionLevels,
+      hint: "Pixel size of the overlay (33% / 50% / 75% / 100%). Native skips the extra blit. Drop this first if the desktop feels heavy. Cost: High at Native."
+    }
+  ]
+}
+
+var shaderDetailIds = ["rain", "stormy", "snow", "fog", "sunny", "fire", "rainbow"]
+
+function defaultShaderDetail(fallback) {
+  var d = normalizedDetail(fallback)
+  var o = {}
+  for (var i = 0; i < shaderDetailIds.length; i++)
+    o[shaderDetailIds[i]] = d
+  return o
+}
+
+function mergeShaderDetail(raw, fallback) {
+  var d = normalizedDetail(fallback)
+  var src = raw && typeof raw === "object" ? raw : {}
+  var o = {}
+  for (var i = 0; i < shaderDetailIds.length; i++) {
+    var k = shaderDetailIds[i]
+    o[k] = src[k] != null && String(src[k]) !== "" ? normalizedDetail(src[k]) : d
+  }
+  return o
+}
+
+function shaderDetailAllEqual(map) {
+  var o = mergeShaderDetail(map, "high")
+  var first = o[shaderDetailIds[0]]
+  for (var i = 1; i < shaderDetailIds.length; i++) {
+    if (o[shaderDetailIds[i]] !== first) return false
+  }
+  return true
+}
+
+function formatShaderDetail(map) {
+  var o = mergeShaderDetail(map, "high")
+  if (shaderDetailAllEqual(o)) return o.rain
+  var parts = []
+  for (var i = 0; i < shaderDetailIds.length; i++)
+    parts.push(shaderDetailIds[i] + ":" + o[shaderDetailIds[i]])
+  return parts.join(",")
+}
+
+function normalizedShaderId(value) {
+  var v = String(value || "").toLowerCase()
+  if (v === "cloud" || v === "clouds" || v === "cloud/fog") return "fog"
+  if (v === "sun" || v === "moon" || v === "moonlight") return "sunny"
+  if (v === "storm") return "stormy"
+  for (var i = 0; i < shaderDetailIds.length; i++) {
+    if (shaderDetailIds[i] === v) return v
+  }
+  return ""
+}
+
+function detailForShader(map, shader, fallback) {
+  var k = normalizedShaderId(shader)
+  var o = mergeShaderDetail(map, fallback)
+  if (!k) return normalizedDetail(fallback)
+  return o[k]
+}
+
+// Settings page: per-shader what/cost. Rank is relative GPU load when that look is on.
+var settingsEffectGuide = [
+  {
+    shader: "rain",
+    title: "Rain",
+    cost: "Highest",
+    body: "Glass drops. Medium adds a second rolling pass; Extreme a third, plus highlights. Distortion + Refract warps the whole monitor every frame — usually the most expensive combination."
+  },
+  {
+    shader: "stormy",
+    title: "Stormy",
+    cost: "Highest",
+    body: "Same rain cost, plus lightning that grows with detail (more bolt segments at Extreme). Bolts stay on the overlay; rain warp is still Distortion."
+  },
+  {
+    shader: "fire",
+    title: "Fire",
+    cost: "High",
+    body: "Ground flames. Detail is FBM octaves (2→6) and extra flame layers from Medium up. Overlay only — no desktop warp."
+  },
+  {
+    shader: "fog",
+    title: "Cloud/Fog",
+    cost: "High",
+    body: "Fullscreen noise clouds. Detail is octaves (2→6). Mixes that stack fog with rain pay both bills."
+  },
+  {
+    shader: "snow",
+    title: "Snow",
+    cost: "Medium",
+    body: "Falling flakes. Detail caps how many flake layers draw. Overlay only."
+  },
+  {
+    shader: "sunny",
+    title: "Sunny / Moon",
+    cost: "Medium",
+    body: "Glow, shafts, dust. Detail adds shaft samples and mote count (4→24). Cheap next to rain warp. Overlay only."
+  },
+  {
+    shader: "rainbow",
+    title: "Rainbow",
+    cost: "Low",
+    body: "Primary and secondary bows. Detail adds extra samples along the arc. Overlay only; Add Rainbow stacks this on another look."
+  }
+]
+
+function settingsLodRows() {
+  return [{
+    shader: "",
+    title: "All looks",
+    cost: "All shaders",
+    body: "Sets Effect detail for every shader at once. Use the rows below to make one look cheaper without dropping the others."
+  }].concat(settingsEffectGuide)
 }
 
 var modeValues = {
@@ -174,14 +377,14 @@ var mixRecipes = {
   },
   drizzle: {
     layers: [
-      { shader: "fog", strengthKey: "strengthA", defaultStrength: 0.55, label: "Haze" },
+      { shader: "fog", strengthKey: "strengthA", defaultStrength: 0.55, label: "Fog" },
       { shader: "rain", strengthKey: "strengthB", defaultStrength: 0.5, label: "Rain" },
       optionalRainbowLayer
     ]
   },
   squall: {
     layers: [
-      { shader: "fog", strengthKey: "strengthA", defaultStrength: 0.8, label: "Haze" },
+      { shader: "fog", strengthKey: "strengthA", defaultStrength: 0.8, label: "Fog" },
       { shader: "snow", strengthKey: "strengthB", defaultStrength: 0.4, label: "Snow" },
       optionalRainbowLayer
     ]
@@ -372,15 +575,49 @@ function rainRefractSource(visual, params, shaderA, shaderB, shaderC) {
   return ""
 }
 
-function overlaySkipsRainDrops(hyprEnabled, preset, params) {
+function overlaySkipsRainDrops(hyprEnabled, wallpaperTarget, preset, params) {
   if (!hyprEnabled) return false
   var p = String(preset || "")
   if (p !== "rain" && p !== "stormy") return false
   return paramValue(params, p, "refract", 1) > 0.001
 }
 
-// 90°F in Celsius. Stored unit is always °C; the panel shows °F when locale is imperial.
-var defaultHazeTempC = (90 - 32) * 5 / 9
+function screenShaderKind(visual, params, shaderA, shaderB, shaderC) {
+  return rainRefractSource(visual, params, shaderA, shaderB, shaderC) !== "" ? "rain" : ""
+}
+
+var hyprRainFadeSec = 0.6
+
+function visualNeedsScreenShader(visual, params, shaderA, shaderB, shaderC) {
+  return screenShaderKind(visual, params, shaderA, shaderB, shaderC) !== ""
+}
+
+function hyprShaderInput(visual, params, quality, shaderA, shaderB, shaderC, pixelRatio) {
+  var kind = screenShaderKind(visual, params, shaderA, shaderB, shaderC)
+  var rainSrc = rainRefractSource(visual, params, shaderA, shaderB, shaderC)
+  var stormRain = rainSrc === "stormy"
+  var rainPreset = stormRain ? "stormy" : "rain"
+  return {
+    kind: kind,
+    density: paramValue(params, rainPreset, "density", stormRain ? 1 : 0.8),
+    speed: paramValue(params, rainPreset, "speed", stormRain ? 1.15 : 1),
+    scale: paramValue(params, rainPreset, "scale", 1),
+    glow: stormRain ? paramValue(params, "stormy", "sheen", 0.6) : paramValue(params, "rain", "glow", 0.6),
+    darken: stormRain ? paramValue(params, "stormy", "darken", 1) : paramValue(params, "rain", "darken", 1),
+    strength: stormRain
+      ? stormLayerStrength(visual, params, shaderA, shaderB, shaderC)
+      : rainLayerStrength(visual, params, shaderA, shaderB, shaderC),
+    refract: paramValue(params, rainPreset, "refract", 1),
+    quality: qualityRank(quality),
+    pixelRatio: pixelRatio,
+    stormRain: stormRain,
+    azimuth: paramValue(params, "stormy", "azimuth", 1),
+    rainFrom: rainSrc !== "" ? 1 : 0,
+    rainTo: rainSrc !== "" ? 1 : 0,
+    fadeSec: 0,
+    timeOffset: 0
+  }
+}
 
 function celsiusToFahrenheit(c) {
   return Number(c) * 9 / 5 + 32
@@ -397,80 +634,6 @@ function localeUsesImperial(localeName) {
 
 function shouldUseImperial(localeName) {
   return localeUsesImperial(localeName)
-}
-
-function hazeOutdoorGate(outdoorTempC, thresholdC) {
-  var outdoor = parseFloat(outdoorTempC)
-  var need = parseFloat(thresholdC)
-  if (isNaN(outdoor) || isNaN(need)) return 0
-  if (outdoor >= need) return 1
-  return Math.max(0, Math.min(1, (outdoor - (need - 2)) / 2))
-}
-
-function hazeLayerAmounts(visual, params, shaderA, shaderB, shaderC, outdoorTempC) {
-  var sunnyS = layerStrengthForShader(visual, "sunny", params, shaderA, shaderB, shaderC)
-    * paramValue(params, "sunny", "haze", 0)
-    * hazeOutdoorGate(outdoorTempC, paramValue(params, "sunny", "temperature", defaultHazeTempC))
-  var fireS = layerStrengthForShader(visual, "fire", params, shaderA, shaderB, shaderC)
-    * paramValue(params, "fire", "haze", 0)
-  var fireHaze = fireS > 0 && fireS >= sunnyS
-  return {
-    sunny: sunnyS,
-    fire: fireS,
-    amount: Math.max(sunnyS, fireS),
-    fireHaze: fireHaze
-  }
-}
-
-function screenShaderKind(visual, params, shaderA, shaderB, shaderC, outdoorTempC) {
-  var parts = []
-  var rainOn = rainRefractSource(visual, params, shaderA, shaderB, shaderC) !== ""
-  var hazeOn = hazeLayerAmounts(visual, params, shaderA, shaderB, shaderC, outdoorTempC).amount > 0.001
-  if (rainOn) parts.push("rain")
-  if (hazeOn) parts.push("haze")
-  return parts.join("+")
-}
-
-var hyprRainFadeSec = 0.6
-
-function visualNeedsScreenShader(visual, params, shaderA, shaderB, shaderC, outdoorTempC) {
-  return screenShaderKind(visual, params, shaderA, shaderB, shaderC, outdoorTempC) !== ""
-}
-
-function hyprShaderInput(visual, params, quality, shaderA, shaderB, shaderC, pixelRatio, outdoorTempC) {
-  var kind = screenShaderKind(visual, params, shaderA, shaderB, shaderC, outdoorTempC)
-  var haze = hazeLayerAmounts(visual, params, shaderA, shaderB, shaderC, outdoorTempC)
-  var rainSrc = rainRefractSource(visual, params, shaderA, shaderB, shaderC)
-  var stormRain = rainSrc === "stormy"
-  var rainPreset = stormRain ? "stormy" : "rain"
-  return {
-    kind: kind,
-    density: paramValue(params, rainPreset, "density", stormRain ? 1 : 0.8),
-    speed: paramValue(params, rainPreset, "speed", stormRain ? 1.15 : 1),
-    scale: paramValue(params, rainPreset, "scale", 1),
-    glow: stormRain ? paramValue(params, "stormy", "sheen", 0.6) : paramValue(params, "rain", "glow", 0.6),
-    darken: stormRain ? paramValue(params, "stormy", "darken", 1) : paramValue(params, "rain", "darken", 1),
-    strength: stormRain
-      ? stormLayerStrength(visual, params, shaderA, shaderB, shaderC)
-      : rainLayerStrength(visual, params, shaderA, shaderB, shaderC),
-    refract: paramValue(params, rainPreset, "refract", 1),
-    quality: qualityRank(quality),
-    haze: haze.amount,
-    fireHaze: haze.fireHaze,
-    pixelRatio: pixelRatio,
-    stormRain: stormRain,
-    azimuth: paramValue(params, "stormy", "azimuth", 1),
-    rainFrom: rainSrc !== "" ? 1 : 0,
-    rainTo: rainSrc !== "" ? 1 : 0,
-    hazeFrom: haze.amount,
-    hazeTo: haze.amount,
-    fadeSec: 0,
-    timeOffset: 0
-  }
-}
-
-function sunnyHazeWanted(params) {
-  return paramValue(params, "sunny", "haze", 0) > 0.001
 }
 
 function normalizedMode(value) {
@@ -529,9 +692,9 @@ function iconForMode(value) {
 function descriptionForPreset(preset, nightFactor) {
   var v = String(preset || "")
   if (v === "sunny" && moonlightActive(nightFactor))
-    return "Cool moonlight wash, shafts, and faint dust. Color eases over civil twilight (sun 0° to −6°, a few minutes). Heat haze still waits for outdoor temperature at or above On above."
+    return "Cool moonlight wash, shafts, and faint dust. Color eases over civil twilight (sun 0° to −6°, a few minutes)."
   if (v === "partly" && moonlightActive(nightFactor))
-    return "Broken clouds with moonlight instead of sun (same twilight blend as Sunny). Follow would map this to Moonlit clouds. Haze still uses Sunny’s On above temperature."
+    return "Broken clouds with moonlight instead of sun (same twilight blend as Sunny). Follow would map this to Moonlit clouds."
   var entry = modeEntry(v)
   return entry && entry.description ? String(entry.description) : ""
 }
@@ -542,7 +705,7 @@ function moonlightActive(nightFactor) {
 
 function labelForPreset(preset, nightFactor) {
   var v = String(preset || "")
-  if (v === "none") return "None"
+  if (v === "none") return "Off"
   if (v === "fog") return "Cloud/Fog"
   if (v === "rain") return "Rain"
   if (v === "snow") return "Snow"
@@ -605,9 +768,7 @@ var tweakFields = {
     { key: "speed", label: "Speed", kind: "slider", max: 2 },
     { key: "density", label: "Dust", kind: "slider", max: 2 },
     { key: "azimuth", label: "Position", kind: "slider", max: 2 },
-    { key: "distance", label: "Distance", kind: "slider", max: 2 },
-    { key: "haze", label: "Haze", kind: "slider", max: 1 },
-    { key: "temperature", label: "On above", kind: "slider", format: "temp", min: 10, max: 49 }
+    { key: "distance", label: "Distance", kind: "slider", max: 2 }
   ],
   stormy: [
     { key: "density", label: "Density", kind: "slider", max: 2.4 },
@@ -624,8 +785,7 @@ var tweakFields = {
     { key: "density", label: "Density", kind: "slider", max: 2 },
     { key: "speed", label: "Speed", kind: "slider", max: 2 },
     { key: "scale", label: "Scale", kind: "slider", max: 2 },
-    { key: "glow", label: "Glow", kind: "slider", max: 2 },
-    { key: "haze", label: "Haze", kind: "slider", max: 1 }
+    { key: "glow", label: "Glow", kind: "slider", max: 2 }
   ],
   rainbow: [
     { key: "glow", label: "Glow", kind: "slider", max: 2 },
@@ -646,9 +806,9 @@ function defaultParams() {
     rain: { strength: 1, density: 0.8, speed: 1, scale: 1, glow: 0.6, darken: 1, refract: 1, enableC: 0, strengthC: 0.65 },
     snow: { strength: 1, density: 0.8, speed: 1, scale: 0.8, glow: 0.3, enableC: 0, strengthC: 0.65 },
     fog: { strength: 1, density: 1, speed: 0.9, scale: 1, enableC: 0, strengthC: 0.65 },
-    sunny: { strength: 1, glow: 1, speed: 1, density: 1.2, azimuth: 1.2, distance: 1, haze: 0.5, temperature: defaultHazeTempC, enableC: 0, strengthC: 0.65 },
+    sunny: { strength: 1, glow: 1, speed: 1, density: 1.2, azimuth: 1.2, distance: 1, enableC: 0, strengthC: 0.65 },
     stormy: { strength: 1, density: 1, speed: 1.15, scale: 1, sheen: 0.6, refract: 1, lightning: 1.5, frequency: 1, glow: 1, azimuth: 1, enableC: 0, strengthC: 0.65 },
-    fire: { strength: 1, density: 1, speed: 0.5, scale: 1, glow: 1, haze: 0.5, enableC: 0, strengthC: 0.65 },
+    fire: { strength: 1, density: 1, speed: 0.5, scale: 1, glow: 1, enableC: 0, strengthC: 0.65 },
     rainbow: { strength: 1, glow: 1, density: 1, scale: 1, azimuth: 0.8, lightning: 0.65, distance: 1, speed: 1, nightVisible: 0, nightTint: 1, nightStrength: 0.7 }
   }
   for (var id in mixRecipes) {
@@ -804,8 +964,7 @@ function isCheckParam(key) {
 function fieldMaximum(mode, key) {
   var k = String(key || "")
   if (k === "strength" || k === "strengthA" || k === "strengthB" || k === "strengthC" || isCheckParam(k)) return 1
-  if (k === "refract" || k === "haze") return 1
-  if (k === "temperature") return 49
+  if (k === "refract") return 1
   var fields = tweakFields[normalizedMode(mode)] || []
   for (var i = 0; i < fields.length; i++) {
     if (fields[i].key === k && fields[i].max) return fields[i].max
@@ -829,7 +988,6 @@ function fieldMinimum(mode, key) {
 function fieldNudgeStep(field) {
   if (!field) return 0.1
   if (field.kind === "check") return 1
-  if (field.format === "temp" || field.key === "temperature") return 1
   if (field.key === "strength" || field.key === "strengthA" || field.key === "strengthB" || field.key === "strengthC") return 0.05
   return 0.1
 }
@@ -839,11 +997,8 @@ function clampParam(key, value, mode) {
   if (isNaN(n)) {
     if (isCheckParam(key)) n = 0
     else if (key === "strengthA" || key === "strengthB" || key === "strengthC") n = 0.5
-    else if (key === "temperature") n = defaultHazeTempC
     else n = 1
   }
-  if (key === "temperature" && n <= 1)
-    n = defaultHazeTempC
   if (isCheckParam(key)) return n >= 0.5 ? 1 : 0
   return Math.max(fieldMinimum(mode, key), Math.min(fieldMaximum(mode, key), n))
 }
@@ -908,7 +1063,8 @@ var overlayQsbFiles = [
   "sunny.frag.qsb",
   "stormy.frag.qsb",
   "fire.frag.qsb",
-  "rainbow.frag.qsb"
+  "rainbow.frag.qsb",
+  "wallpaper_warp.frag.qsb"
 ]
 
 function overlayShadersReady(files) {
@@ -923,7 +1079,7 @@ function overlayShadersReady(files) {
 
 function qsbBakerWarning(files) {
   if (overlayShadersReady(files)) return ""
-  return "The painted overlay is missing compiled shaders. Update the plugin, or install qt6-shadertools with omarchy pkg add qt6-shadertools and reopen this panel. Rain refraction and haze still work without it."
+  return "The painted overlay is missing compiled shaders. Update the plugin, or install qt6-shadertools with omarchy pkg add qt6-shadertools and reopen this panel. Rain refraction still works without it."
 }
 
 function hyprShaderRivalWarning(rivals) {
@@ -934,7 +1090,7 @@ function hyprShaderRivalWarning(rivals) {
     names.push(list[i].name || list[i].id)
   var who = names.length === 1 ? names[0] : names.slice(0, -1).join(", ") + " and " + names[names.length - 1]
   return "Hyprland only has one screen shader. " + who
-    + " also apply one, so rain refraction and haze may lose if that plugin applied last."
+    + " also apply one, so rain refraction may lose if that plugin applied last."
 }
 
 function shaderFilesFromListing(raw) {
