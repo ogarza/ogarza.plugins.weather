@@ -73,9 +73,6 @@ Panel {
   property string focusSection: "modes"
   property int modeIndex: 0
   property int trackIndex: 0
-  property int layerAIndex: 0
-  property int layerBIndex: 0
-  property int layerCIndex: 0
   property int tweakIndex: 0
   property int resolutionIndex: 2
   property int detailIndex: 2
@@ -99,7 +96,11 @@ Panel {
     root.controller.show()
   }
 
-  onOpenedChanged: root.syncPanelOpen()
+  onOpenedChanged: {
+    root.syncPanelOpen()
+    if (!root.opened)
+      root.closeLayerDropdowns()
+  }
   onFxChanged: root.syncPanelOpen()
 
   function switchPanel(direction) {
@@ -127,28 +128,16 @@ Panel {
         break
       }
     }
-    for (var a = 0; a < root.mixShaderList.length; a++) {
-      if (root.mixShaderList[a].value === root.fx.customShaderA) {
-        root.layerAIndex = a
-        break
-      }
-    }
-    for (var b = 0; b < root.mixShaderList.length; b++) {
-      if (root.mixShaderList[b].value === root.fx.customShaderB) {
-        root.layerBIndex = b
-        break
-      }
-    }
-    for (var c = 0; c < root.mixShaderList.length; c++) {
-      if (root.mixShaderList[c].value === root.fx.customShaderC) {
-        root.layerCIndex = c
-        break
-      }
-    }
     root.resolutionIndex = Model.indexOfResolution(root.fx.resolution)
     root.detailIndex = Model.indexOfDetail(root.fx.detail)
     if (root.fx.mode === "none")
       root.settingsOpen = true
+  }
+
+  function closeLayerDropdowns() {
+    layerDropA.close()
+    layerDropB.close()
+    layerDropC.close()
   }
 
   function clampCursor() {
@@ -166,15 +155,6 @@ Panel {
     if (root.trackIndex < 0) root.trackIndex = 0
     if (root.trackIndex >= root.exclusiveList.length)
       root.trackIndex = Math.max(0, root.exclusiveList.length - 1)
-    if (root.layerAIndex < 0) root.layerAIndex = 0
-    if (root.layerAIndex >= root.mixShaderList.length)
-      root.layerAIndex = Math.max(0, root.mixShaderList.length - 1)
-    if (root.layerBIndex < 0) root.layerBIndex = 0
-    if (root.layerBIndex >= root.mixShaderList.length)
-      root.layerBIndex = Math.max(0, root.mixShaderList.length - 1)
-    if (root.layerCIndex < 0) root.layerCIndex = 0
-    if (root.layerCIndex >= root.mixShaderList.length)
-      root.layerCIndex = Math.max(0, root.mixShaderList.length - 1)
     if (root.tweakIndex < 0) root.tweakIndex = 0
     if (root.tweakIndex >= root.tweakRowCount)
       root.tweakIndex = Math.max(0, root.tweakRowCount - 1)
@@ -330,7 +310,6 @@ Panel {
       }
       if (root.customMode) {
         root.focusSection = "layerA"
-        root.layerAIndex = 0
         return
       }
       if (root.exclusiveMode) {
@@ -368,54 +347,26 @@ Panel {
 
     if (root.focusSection === "layerA") {
       if (dy < 0) {
-        if (root.layerAIndex <= 0) {
-          root.focusSection = "modes"
-          root.modeIndex = root.modeList.length - 1
-          return
-        }
-        root.layerAIndex = root.layerAIndex - 1
-        return
-      }
-      if (root.layerAIndex < root.mixShaderList.length - 1) {
-        root.layerAIndex = root.layerAIndex + 1
+        root.focusSection = "modes"
+        root.modeIndex = root.modeList.length - 1
         return
       }
       root.focusSection = "layerB"
-      root.layerBIndex = 0
       return
     }
 
     if (root.focusSection === "layerB") {
       if (dy < 0) {
-        if (root.layerBIndex <= 0) {
-          root.focusSection = "layerA"
-          root.layerAIndex = root.mixShaderList.length - 1
-          return
-        }
-        root.layerBIndex = root.layerBIndex - 1
-        return
-      }
-      if (root.layerBIndex < root.mixShaderList.length - 1) {
-        root.layerBIndex = root.layerBIndex + 1
+        root.focusSection = "layerA"
         return
       }
       root.focusSection = "layerC"
-      root.layerCIndex = 0
       return
     }
 
     if (root.focusSection === "layerC") {
       if (dy < 0) {
-        if (root.layerCIndex <= 0) {
-          root.focusSection = "layerB"
-          root.layerBIndex = root.mixShaderList.length - 1
-          return
-        }
-        root.layerCIndex = root.layerCIndex - 1
-        return
-      }
-      if (root.layerCIndex < root.mixShaderList.length - 1) {
-        root.layerCIndex = root.layerCIndex + 1
+        root.focusSection = "layerB"
         return
       }
       if (root.showTweaks) {
@@ -429,7 +380,6 @@ Panel {
       if (dy < 0) {
         if (root.customMode) {
           root.focusSection = "layerC"
-          root.layerCIndex = root.mixShaderList.length - 1
           return
         }
         if (root.exclusiveMode) {
@@ -503,18 +453,15 @@ Panel {
       return
     }
     if (root.focusSection === "layerA") {
-      var layerA = root.mixShaderList[root.layerAIndex]
-      if (layerA) root.fx.setCustomShader(0, layerA.value)
+      layerDropA.toggle()
       return
     }
     if (root.focusSection === "layerB") {
-      var layerB = root.mixShaderList[root.layerBIndex]
-      if (layerB) root.fx.setCustomShader(1, layerB.value)
+      layerDropB.toggle()
       return
     }
     if (root.focusSection === "layerC") {
-      var layerC = root.mixShaderList[root.layerCIndex]
-      if (layerC) root.fx.setCustomShader(2, layerC.value)
+      layerDropC.toggle()
       return
     }
     if (root.focusSection === "tweaks") {
@@ -531,7 +478,11 @@ Panel {
 
   onShowTweaksChanged: root.clampCursor()
   onExclusiveModeChanged: root.clampCursor()
-  onCustomModeChanged: root.clampCursor()
+  onCustomModeChanged: {
+    root.clampCursor()
+    if (!root.customMode)
+      root.closeLayerDropdowns()
+  }
   onParamColsChanged: root.clampCursor()
 
   KeyboardPanel {
@@ -551,6 +502,7 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      blocked: layerDropA.popupOpen || layerDropB.popupOpen || layerDropC.popupOpen
       onMoveRequested: function(dx, dy) {
         if (!root.cursorActive) { root.cursorActive = true; return }
         root.moveCursor(dx, dy)
@@ -564,7 +516,7 @@ Panel {
         anchors.fill: parent
         contentWidth: width
         contentHeight: column.implicitHeight
-        clip: true
+        clip: !(layerDropA.popupOpen || layerDropB.popupOpen || layerDropC.popupOpen)
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
         interactive: contentHeight > height
@@ -813,22 +765,43 @@ Panel {
               height: visible ? implicitHeight : 0
               spacing: Style.space(8)
 
-              LayerPickStack {
-                heading: "A"
-                section: "layerA"
-                slot: 0
+              Dropdown {
+                id: layerDropA
+                width: parent.width
+                label: "Layer A"
+                fontFamily: root.fontFamily
+                foreground: root.foreground
+                options: root.mixShaderList
+                value: root.fx ? root.fx.customShaderA : "rain"
+                hasCursor: root.cursorActive && root.focusSection === "layerA"
+                onHovered: function(on) { if (on) { root.cursorActive = true; root.focusSection = "layerA" } }
+                onChanged: function(v) { if (root.fx) root.fx.setCustomShader(0, v) }
               }
 
-              LayerPickStack {
-                heading: "B"
-                section: "layerB"
-                slot: 1
+              Dropdown {
+                id: layerDropB
+                width: parent.width
+                label: "Layer B"
+                fontFamily: root.fontFamily
+                foreground: root.foreground
+                options: root.mixShaderList
+                value: root.fx ? root.fx.customShaderB : "fog"
+                hasCursor: root.cursorActive && root.focusSection === "layerB"
+                onHovered: function(on) { if (on) { root.cursorActive = true; root.focusSection = "layerB" } }
+                onChanged: function(v) { if (root.fx) root.fx.setCustomShader(1, v) }
               }
 
-              LayerPickStack {
-                heading: "C"
-                section: "layerC"
-                slot: 2
+              Dropdown {
+                id: layerDropC
+                width: parent.width
+                label: "Layer C"
+                fontFamily: root.fontFamily
+                foreground: root.foreground
+                options: root.mixShaderList
+                value: root.fx ? root.fx.customShaderC : "none"
+                hasCursor: root.cursorActive && root.focusSection === "layerC"
+                onHovered: function(on) { if (on) { root.cursorActive = true; root.focusSection = "layerC" } }
+                onChanged: function(v) { if (root.fx) root.fx.setCustomShader(2, v) }
               }
             }
 
@@ -897,38 +870,6 @@ Panel {
             }
           }
         }
-      }
-    }
-  }
-
-  component LayerPickStack: Column {
-    id: pickStack
-    property string heading: "A"
-    property string section: "layerA"
-    property int slot: 0
-    width: parent.width
-    spacing: Style.space(4)
-
-    Text {
-      width: parent.width
-      text: pickStack.heading
-      color: root.dim
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
-      font.bold: true
-    }
-
-    Repeater {
-      model: root.mixShaderList
-
-      MixPickRow {
-        required property var modelData
-        required property int index
-        width: pickStack.width
-        entry: modelData
-        rowIndex: index
-        section: pickStack.section
-        slot: pickStack.slot
       }
     }
   }
@@ -1214,74 +1155,6 @@ Panel {
         font.family: root.fontFamily
         font.pixelSize: Style.font.body
         font.bold: trackRow.selected
-        elide: Text.ElideRight
-      }
-    }
-  }
-
-  component MixPickRow: CursorSurface {
-    id: mixRow
-    property var entry: null
-    property int rowIndex: 0
-    property string section: "layerA"
-    property int slot: 0
-    readonly property string value: entry ? String(entry.value) : ""
-    readonly property string label: entry ? String(entry.label) : ""
-    readonly property string glyph: entry ? String(entry.icon) : ""
-    readonly property bool selected: {
-      if (!root.fx) return false
-      if (mixRow.slot === 2) return root.fx.customShaderC === mixRow.value
-      if (mixRow.slot === 1) return root.fx.customShaderB === mixRow.value
-      return root.fx.customShaderA === mixRow.value
-    }
-    readonly property int cursorIndex: mixRow.section === "layerC"
-      ? root.layerCIndex
-      : (mixRow.section === "layerB" ? root.layerBIndex : root.layerAIndex)
-
-    hasCursor: root.cursorActive && root.focusSection === mixRow.section && mixRow.cursorIndex === mixRow.rowIndex
-    current: selected
-    foreground: root.foreground
-
-    implicitHeight: mixContent.implicitHeight + Style.space(10)
-
-    MouseArea {
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onEntered: {
-        root.cursorActive = true
-        root.focusSection = mixRow.section
-        if (mixRow.section === "layerC") root.layerCIndex = mixRow.rowIndex
-        else if (mixRow.section === "layerB") root.layerBIndex = mixRow.rowIndex
-        else root.layerAIndex = mixRow.rowIndex
-      }
-      onClicked: if (root.fx) root.fx.setCustomShader(mixRow.slot, mixRow.value)
-    }
-
-    RowLayout {
-      id: mixContent
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      anchors.leftMargin: Style.space(10)
-      anchors.rightMargin: Style.space(10)
-      spacing: Style.space(10)
-
-      Text {
-        text: mixRow.glyph
-        color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.icon
-        Layout.alignment: Qt.AlignVCenter
-      }
-
-      Text {
-        Layout.fillWidth: true
-        text: mixRow.label
-        color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.body
-        font.bold: mixRow.selected
         elide: Text.ElideRight
       }
     }

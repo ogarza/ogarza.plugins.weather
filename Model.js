@@ -25,7 +25,7 @@ var modes = [
   { value: "stars", label: "Stars", icon: "󰓎", description: "Twinkling starfield on three slow parallax layers. Overlay only. Parallax 0 is fully still. Shooting stars are rare and brief (0 turns them off); each one picks a heading and near/far size. Manual only — Follow never picks this." },
   { value: "pollen", label: "Pollen", icon: "󰌎", description: "Dandelion-like seeds that lift and sway. Overlay only. Hue, saturation, size, glow, and tumble are sliders. Manual only — Follow never picks this." },
   { value: "rainbow", label: "Rainbow", icon: "󰟗", description: "Primary and secondary bows opposite the sun. Invisible after sunset unless After sunset is on; then Night glow cools the bands and Night strength sets how visible they stay. Manual only — Follow never picks this. Add Rainbow on other modes shares these sliders." },
-  { value: "custom", label: "Custom", icon: "󰣖", description: "Stack up to three shaders. None turns a layer off. Sliders are shared with the standalone modes (changing rain density here also changes Rain). Manual only — Follow never picks this." }
+  { value: "custom", label: "Custom", icon: "󰣖", description: "Stack up to three shaders with a dropdown per layer. None turns a layer off. Sliders are shared with the standalone modes (changing rain density here also changes Rain). Manual only — Follow never picks this." }
 ]
 
 // Bar glyph: creation sparkle = desktop effects, not a forecast (those stay in the panel).

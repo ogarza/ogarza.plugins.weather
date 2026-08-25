@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.1
+
+- Custom layers are **dropdowns** (A / B / C) instead of three full stacked lists, so the panel stays shorter.
+
 ## 1.9.0
 
 - **Pollen** and **Motes** are CPU flocks (one overlay sprite per seed, not a fullscreen gather loop). Density 0–200% is about 4–192 specks. Pollen has **Wind** (`sheen`, 0 = up) and **Tumble**. Motes keep the old home + sin/cos wander and per-speck glow pulse.

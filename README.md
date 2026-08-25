@@ -2,7 +2,7 @@
 
 Fullscreen weather on your Omarchy desktop: rain on glass, snow, clouds, sun, storms, fire, motes, mist, stars, pollen, rainbows, and mixes. Most of it is a transparent overlay. Rain refraction goes through Hyprland (or the wallpaper warp) so drops warp the real desktop, not a painted copy.
 
-Plugin id: `ogarza.plugins.weather` · version **1.9.0**
+Plugin id: `ogarza.plugins.weather` · version **1.9.1**
 
 ## Install
 
@@ -116,7 +116,7 @@ Mode changes in the panel fade over about two seconds. Follow fades forecast cha
 | Rainbow | Primary and secondary bows (manual only). Hidden after sunset unless **After sunset** is on (**Night glow** / **Night strength**) |
 | Custom | Up to three stacked shaders; **None** turns a layer off (manual only). Sliders are shared with the standalone modes |
 
-The panel lists forecast modes first, then **Manual only** for Fire, Motes, Mist, Stars, Pollen, Rainbow, and Custom. Mixes open one parameter column per layer. **Add Rainbow** adds a Rainbow column. Custom stacks Layer A / B / C pickers (each can be **None**).
+The panel lists forecast modes first, then **Manual only** for Fire, Motes, Mist, Stars, Pollen, Rainbow, and Custom. Mixes open one parameter column per layer. **Add Rainbow** adds a Rainbow column. Custom uses a **dropdown** per Layer A / B / C (each can be **None**).
 
 **Follow** and **Exclusive** read `~/.local/state/omarchy/settings/weather.json` — the same location Omarchy uses. With coordinates they ask [Open-Meteo](https://open-meteo.com/) for the current weather code and outdoor temperature. Without coordinates they fall back to [wttr.in](https://wttr.in/). Refresh is about every 15 minutes.
 
