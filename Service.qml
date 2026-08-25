@@ -7,6 +7,8 @@ import qs.Ui
 import qs.Commons
 import "Model.js" as Model
 import "HyprShader.js" as HyprShader
+import "PollenSim.js" as PollenSim
+import "MotesSim.js" as MotesSim
 
 Item {
   id: root
@@ -96,6 +98,16 @@ Item {
 
   readonly property bool overlayVisible: root.overlayWanted
     || (overlayFade.running && (Model.isVisualPreset(root.overlayFromPreset) || Model.isVisualPreset(root.overlayToPreset)))
+
+  readonly property bool pollenSimActive: root.overlayVisible && (
+    Model.visualUsesShader(root.overlayFromPreset, "pollen", root.customShaderA, root.customShaderB, root.customShaderC, root.params)
+    || Model.visualUsesShader(root.overlayToPreset, "pollen", root.customShaderA, root.customShaderB, root.customShaderC, root.params)
+  )
+
+  readonly property bool motesSimActive: root.overlayVisible && (
+    Model.visualUsesShader(root.overlayFromPreset, "motes", root.customShaderA, root.customShaderB, root.customShaderC, root.params)
+    || Model.visualUsesShader(root.overlayToPreset, "motes", root.customShaderA, root.customShaderB, root.customShaderC, root.params)
+  )
 
   readonly property string hyprKind: Model.screenShaderKind(
     root.overlayToPreset, root.params, root.customShaderA, root.customShaderB, root.customShaderC)
@@ -270,7 +282,7 @@ Item {
 
   readonly property string paramPreset: {
     var p = root.effectivePreset
-    return (p === "rain" || p === "snow" || p === "fog" || p === "sunny" || p === "stormy" || p === "fire" || p === "rainbow") ? p : ""
+    return Model.isEffectPreset(p) ? p : ""
   }
 
   readonly property real uStrength: Model.paramValue(root.params, root.paramPreset || "rain", "strength", 1)
@@ -282,7 +294,7 @@ Item {
   readonly property real uFrequency: Model.paramValue(root.params, root.paramPreset || "stormy", "frequency", 1)
   readonly property real uAzimuth: Model.paramValue(
     root.params,
-    root.paramPreset === "stormy" || root.paramPreset === "rainbow" ? root.paramPreset : "sunny",
+    root.paramPreset === "stormy" || root.paramPreset === "rainbow" || root.paramPreset === "motes" || root.paramPreset === "mist" || root.paramPreset === "stars" || root.paramPreset === "pollen" ? root.paramPreset : "sunny",
     "azimuth",
     root.paramPreset === "stormy" ? 1 : 1.2
   )
@@ -432,6 +444,26 @@ Item {
     settings.hyprBaseDamage = root.hyprBaseDamage
     delete settings.customShader
     shell.updateEntryInline(pluginId, settings)
+  }
+
+  property int pollenLiveCount: 0
+  property int motesLiveCount: 0
+
+  function stepOverlayParticles() {
+    PollenSim.step(
+      clock.elapsedTime,
+      Number(root.params.pollen?.density ?? 1),
+      Number(root.params.pollen?.speed ?? 0.85),
+      Number(root.params.pollen?.sheen ?? 0),
+      root.pollenSimActive)
+    root.pollenLiveCount = PollenSim.seedCount()
+    MotesSim.step(
+      clock.elapsedTime,
+      Number(root.params.motes?.density ?? 1),
+      Number(root.params.motes?.speed ?? 0.7),
+      Model.qualityRank(Model.detailForShader(root.shaderDetail, "motes", root.detail)),
+      root.motesSimActive)
+    root.motesLiveCount = MotesSim.seedCount()
   }
 
   function ipcTrim(raw) {
@@ -1058,7 +1090,8 @@ Item {
     easing.type: Easing.InOutSine
   }
 
-  component WeatherLayer: ShaderEffect {
+  component WeatherLayer: Item {
+    id: wlayer
     required property string visual
     required property int slot
     required property real fade
@@ -1069,61 +1102,194 @@ Item {
     readonly property bool skipDrops: root.persistLoaded &&
       Model.overlaySkipsRainDrops(root.hyprEnabled, root.wallpaperTarget, preset, root.params)
 
-    anchors.fill: parent
-    blending: true
-    visible: fade > 0.001 && shaderFile !== "" && !(preset === "rain" && skipDrops)
-    opacity: Math.max(0, Math.min(1, fade))
-    fragmentShader: shaderFile !== "" ? Qt.resolvedUrl("shaders/" + shaderFile) : ""
-    property real time: clock.elapsedTime
-    property vector2d resolution: {
-      var scr = screenInfo
-      var dpr = scr && scr.devicePixelRatio ? Number(scr.devicePixelRatio) : 1.0
-      var sz = Model.qualityTextureSize(width, height, dpr, root.resolution)
-      return Qt.vector2d(sz.w, sz.h)
-    }
-    property real pixelRatio: {
+    readonly property real layerPixelRatio: {
       var scr = screenInfo
       var dpr = scr && scr.devicePixelRatio ? Number(scr.devicePixelRatio) : 1.0
       return Math.max(0.05, dpr * root.qualityScale)
     }
-    property real strength: Model.slotStrength(root.params, visual, slot, root.customShaderA, root.customShaderB, root.customShaderC)
-    property real density: {
-      if (preset === "stormy" && skipDrops) return 0
-      return Model.paramValue(root.params, preset || "rain", "density", 1)
-    }
-    property real speed: Model.paramValue(root.params, preset || "rain", "speed", 1)
-    property real scale: Model.paramValue(root.params, preset || "rain", "scale", 1)
-    property real glow: Model.paramValue(root.params, preset || "sunny", "glow", 1)
-    property real sheen: {
-      if (preset === "rainbow")
-        return Model.paramValue(root.params, "rainbow", "nightVisible", 0)
-      if (preset === "stormy")
-        return Model.paramValue(root.params, "stormy", "sheen", 0.6)
-      return Model.paramValue(root.params, "rain", "darken", 1)
-    }
-    property real lightning: Model.paramValue(root.params, preset || "stormy", "lightning", 1)
-    property real frequency: Model.paramValue(root.params, preset || "stormy", "frequency", 1)
-    property real azimuth: Model.paramValue(
+    readonly property real layerStrength: Model.slotStrength(root.params, visual, slot, root.customShaderA, root.customShaderB, root.customShaderC)
+    readonly property real layerScale: Model.paramValue(root.params, preset || "rain", "scale", 1)
+    readonly property real layerGlow: Model.paramValue(root.params, preset || "sunny", "glow", 1)
+    readonly property real layerLightning: Model.paramValue(root.params, preset || "stormy", "lightning", 1)
+    readonly property real layerFrequency: Model.paramValue(root.params, preset || "stormy", "frequency", 1)
+    readonly property real layerAzimuth: Model.paramValue(
       root.params,
-      preset === "sunny" || preset === "stormy" || preset === "rainbow" ? preset : "sunny",
+      preset === "sunny" || preset === "stormy" || preset === "rainbow" || preset === "motes" || preset === "mist" || preset === "stars" || preset === "pollen" ? preset : "sunny",
       "azimuth",
       preset === "stormy" ? 1 : 1.2
     )
-    property real sunDistance: Model.paramValue(
-      root.params,
-      preset === "sunny" || preset === "rainbow" ? preset : "sunny",
-      "distance",
-      1
-    )
-    property real night: {
-      if (preset === "rainbow") return root.nightFactor
-      if (preset !== "sunny") return 0
-      if (visual === "moonlit") return 1
-      return root.nightFactor
+    readonly property real layerQuality: Model.qualityRank(Model.detailForShader(root.shaderDetail, preset, root.detail))
+    readonly property real motesBlobPx: {
+      var sizeMix = 2.5
+      var rUv = (sizeMix / (1080.0 * wlayer.layerPixelRatio)) * 1.55
+      var haloUv = rUv * (5.5 + 10.5) * 1.7
+      return Math.max(8, Math.ceil(haloUv * height * 2.4))
     }
-    property real nightTint: Model.paramValue(root.params, "rainbow", "nightTint", 1)
-    property real nightStrength: Model.paramValue(root.params, "rainbow", "nightStrength", 0.7)
-    property real quality: Model.qualityRank(Model.detailForShader(root.shaderDetail, preset, root.detail))
+    readonly property real pollenBlobPx: {
+      var sizeMix = 1.6
+      var rUv = (sizeMix / (1080.0 * wlayer.layerPixelRatio)) * 1.35
+      var haloUv = rUv * 7.5
+      return Math.max(8, Math.ceil(haloUv * height * 2.5))
+    }
+
+    anchors.fill: parent
+    clip: false
+    visible: fade > 0.001 && shaderFile !== "" && !(preset === "rain" && skipDrops)
+    opacity: Math.max(0, Math.min(1, fade))
+
+    function syncSpriteFlock() {
+      var i, it, n, w, h, blob, t
+      t = clock.elapsedTime
+      w = wlayer.width
+      h = wlayer.height
+      if (wlayer.preset === "motes") {
+        n = root.motesLiveCount
+        blob = wlayer.motesBlobPx
+        for (i = 0; i < 192; i++) {
+          it = moteRep.itemAt(i)
+          if (!it)
+            break
+          it.visible = i < n
+          if (i < n) {
+            it.x = MotesSim.xAt(i) * w - blob / 2
+            it.y = MotesSim.yAt(i) * h - blob / 2
+            it.time = t
+          }
+        }
+        return
+      }
+      if (wlayer.preset === "pollen") {
+        n = root.pollenLiveCount
+        blob = wlayer.pollenBlobPx
+        for (i = 0; i < 192; i++) {
+          it = pollenRep.itemAt(i)
+          if (!it)
+            break
+          it.visible = i < n
+          if (i < n) {
+            it.x = PollenSim.xAt(i) * w - blob / 2
+            it.y = PollenSim.yAt(i) * h - blob / 2
+            it.time = t
+          }
+        }
+      }
+    }
+
+    Connections {
+      target: clock
+      enabled: wlayer.preset === "motes" || wlayer.preset === "pollen"
+      function onTriggered() { wlayer.syncSpriteFlock() }
+    }
+
+    ShaderEffect {
+      anchors.fill: parent
+      blending: true
+      visible: wlayer.preset !== "pollen" && wlayer.preset !== "motes"
+      fragmentShader: (wlayer.preset !== "pollen" && wlayer.preset !== "motes" && wlayer.shaderFile !== "")
+        ? Qt.resolvedUrl("shaders/" + wlayer.shaderFile) : ""
+      property real time: clock.elapsedTime
+      property vector2d resolution: {
+        var scr = wlayer.screenInfo
+        var dpr = scr && scr.devicePixelRatio ? Number(scr.devicePixelRatio) : 1.0
+        var sz = Model.qualityTextureSize(width, height, dpr, root.resolution)
+        return Qt.vector2d(sz.w, sz.h)
+      }
+      property real pixelRatio: wlayer.layerPixelRatio
+      property real strength: wlayer.layerStrength
+      property real density: {
+        if (wlayer.preset === "stormy" && wlayer.skipDrops) return 0
+        return Model.paramValue(root.params, wlayer.preset || "rain", "density", 1)
+      }
+      property real speed: Model.paramValue(root.params, wlayer.preset || "rain", "speed", 1)
+      property real scale: wlayer.layerScale
+      property real glow: wlayer.layerGlow
+      property real sheen: {
+        if (wlayer.preset === "rainbow")
+          return Model.paramValue(root.params, "rainbow", "nightVisible", 0)
+        if (wlayer.preset === "stormy" || wlayer.preset === "stars")
+          return Model.paramValue(root.params, wlayer.preset, "sheen",
+            wlayer.preset === "stars" ? 0.7 : 0.6)
+        return Model.paramValue(root.params, "rain", "darken", 1)
+      }
+      property real lightning: wlayer.layerLightning
+      property real frequency: wlayer.layerFrequency
+      property real azimuth: wlayer.layerAzimuth
+      property real sunDistance: Model.paramValue(
+        root.params,
+        wlayer.preset === "sunny" || wlayer.preset === "rainbow" ? wlayer.preset : "sunny",
+        "distance",
+        1
+      )
+      property real night: {
+        if (wlayer.preset === "rainbow") return root.nightFactor
+        if (wlayer.preset !== "sunny") return 0
+        if (wlayer.visual === "moonlit") return 1
+        return root.nightFactor
+      }
+      property real nightTint: Model.paramValue(root.params, "rainbow", "nightTint", 1)
+      property real nightStrength: Model.paramValue(root.params, "rainbow", "nightStrength", 0.7)
+      property real quality: wlayer.layerQuality
+    }
+
+    Repeater {
+      id: pollenRep
+      model: wlayer.preset === "pollen" ? 192 : 0
+      ShaderEffect {
+        property int seedIndex: index
+        visible: false
+        width: wlayer.pollenBlobPx
+        height: wlayer.pollenBlobPx
+        blending: true
+        fragmentShader: Qt.resolvedUrl("shaders/pollen.frag.qsb")
+        property real time: 0
+        property vector2d resolution: Qt.vector2d(Math.max(1, width), Math.max(1, height))
+        property real pixelRatio: wlayer.layerPixelRatio
+        property real strength: wlayer.layerStrength
+        property real density: PollenSim.sizeJitterAt(seedIndex)
+        property real speed: seedIndex
+        property real scale: wlayer.layerScale
+        property real glow: wlayer.layerGlow
+        property real sheen: 0
+        property real lightning: wlayer.layerLightning
+        property real frequency: wlayer.layerFrequency
+        property real azimuth: wlayer.layerAzimuth
+        property real sunDistance: 1
+        property real night: 0
+        property real nightTint: 1
+        property real nightStrength: 0.7
+        property real quality: wlayer.layerQuality
+      }
+    }
+
+    Repeater {
+      id: moteRep
+      model: wlayer.preset === "motes" ? 192 : 0
+      ShaderEffect {
+        property int seedIndex: index
+        visible: false
+        width: wlayer.motesBlobPx
+        height: wlayer.motesBlobPx
+        blending: true
+        fragmentShader: Qt.resolvedUrl("shaders/motes.frag.qsb")
+        property real time: 0
+        property vector2d resolution: Qt.vector2d(Math.max(1, width), Math.max(1, height))
+        property real pixelRatio: wlayer.layerPixelRatio
+        property real strength: wlayer.layerStrength
+        property real density: MotesSim.sizeJitterAt(seedIndex)
+        property real speed: seedIndex
+        property real scale: wlayer.layerScale
+        property real glow: wlayer.layerGlow
+        property real sheen: 0
+        property real lightning: wlayer.layerLightning
+        property real frequency: wlayer.layerFrequency
+        property real azimuth: wlayer.layerAzimuth
+        property real sunDistance: 1
+        property real night: 0
+        property real nightTint: 1
+        property real nightStrength: 0.7
+        property real quality: wlayer.layerQuality
+      }
+    }
   }
 
   FileView {
@@ -1206,6 +1372,7 @@ Item {
   FrameAnimation {
     id: clock
     running: root.overlayVisible || root.wallpaperWarpWanted
+    onTriggered: root.stepOverlayParticles()
   }
 
   FileView {

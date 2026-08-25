@@ -35,6 +35,7 @@ float hash11(float n) {
 
 void main() {
     vec2 res = max(resolution, vec2(1.0));
+    float unit = 1080.0 * max(pixelRatio, 0.05);
     vec2 uv = qt_TexCoord0;
     float aspect = res.x / res.y;
     vec2 p = vec2(uv.x * aspect, uv.y);
@@ -98,7 +99,7 @@ void main() {
             fract(sx + t * moteSpeed * 0.35) * aspect,
             fract(sy + t * moteSpeed * 0.22 + sx * 0.1)
         );
-        float r = (2.4 + hash11(fi + 3.1) * 4.0) / res.y;
+        float r = (2.4 + hash11(fi + 3.1) * 4.0) / unit;
         float d = length(p - pos);
         float spark = smoothstep(r * 2.4, 0.0, d);
         spark *= 0.35 + 0.65 * (0.5 + 0.5 * sin(t * (1.3 + sx * 2.0) + fi));
@@ -116,5 +117,5 @@ void main() {
     alpha = clamp(alpha, 0.0, mix(0.72, 0.22, dAmt * 0.5) * mix(1.0, 0.72, n));
 
     fragColor = vec4(col * alpha, alpha) * qt_Opacity * clamp(strength, 0.0, 1.0);
-    fragColor.a += 0.0 * (sheen + lightning + scale + azimuth + sunDistance + nightTint + nightStrength + pixelRatio);
+    fragColor.a += 0.0 * (sheen + lightning + scale + azimuth + sunDistance + nightTint + nightStrength);
 }

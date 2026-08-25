@@ -1358,7 +1358,10 @@ Panel {
     readonly property real displayValue: tweakCol.isTemp
       ? (tweakCol.imperial ? Model.celsiusToFahrenheit(tweakCol.paramValue) : tweakCol.paramValue)
       : tweakCol.paramValue
+    readonly property bool deferLive: tweakCol.paramPreset === "motes" || tweakCol.paramPreset === "pollen"
     readonly property bool rowCursor: root.cursorActive && root.focusSection === "tweaks" && root.tweakIndex === tweakCol.rowIndex
+    property bool sliding: false
+    property real draftDisplay: 0
     readonly property bool checked: tweakCol.paramValue >= 0.5
 
     function commit(v, persist) {
@@ -1379,8 +1382,8 @@ Panel {
       text: tweakCol.isCheck
         ? (tweakCol.label + (tweakCol.checked ? "  On" : "  Off"))
         : tweakCol.isTemp
-          ? (tweakCol.label + "  " + Math.round(tweakCol.displayValue) + (tweakCol.imperial ? "°F" : "°C"))
-          : (tweakCol.label + "  " + Math.round(tweakCol.paramValue * 100) + "%")
+          ? (tweakCol.label + "  " + Math.round(tweakCol.sliding ? tweakCol.draftDisplay : tweakCol.displayValue) + (tweakCol.imperial ? "°F" : "°C"))
+          : (tweakCol.label + "  " + Math.round((tweakCol.sliding ? tweakCol.draftDisplay : tweakCol.paramValue) * 100) + "%")
       color: root.dim
       font.family: root.fontFamily
       font.pixelSize: Style.font.caption
@@ -1432,9 +1435,17 @@ Panel {
         minimum: tweakCol.displayMin
         maximum: tweakCol.displayMax
         step: tweakCol.isTemp ? 1 : (tweakCol.maximum > 1 ? 0.1 : 0.05)
-        value: tweakCol.displayValue
-        onMoved: function(v) { tweakCol.commit(v, false) }
-        onReleased: function(v) { tweakCol.commit(v, true) }
+        value: tweakCol.sliding ? tweakCol.draftDisplay : tweakCol.displayValue
+        onMoved: function(v) {
+          tweakCol.sliding = true
+          tweakCol.draftDisplay = v
+          if (!tweakCol.deferLive)
+            tweakCol.commit(v, false)
+        }
+        onReleased: function(v) {
+          tweakCol.sliding = false
+          tweakCol.commit(v, true)
+        }
       }
 
       HoverHandler {

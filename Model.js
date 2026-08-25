@@ -17,9 +17,13 @@ var modes = [
   { value: "squall", label: "Snow squall", icon: "󰼶", description: "Snow driven through clouds. Overlay only — snow does not warp the desktop." },
   { value: "wintry", label: "Wintry mix", icon: "󰙿", description: "Rain and snow together. The rain layer can still refract the desktop; painted rain is skipped while that warp is live." },
   { value: "stormy", label: "Stormy", icon: "󰖓", description: "Diagonal rain, a dark Gloom wash, lightning bolts, and a brief sky flash. Refraction follows the Rain rules; bolts stay on the overlay (no desktop shake). Angle is how much the rain leans, not bolt direction." },
-  { value: "follow", label: "Follow", icon: "󰔏", description: "Matches the live forecast for your Omarchy location (Open-Meteo with coords, else wttr). Waits for location before the first fetch. Clear sky is Sunny; thunder is Stormy; partly cloudy becomes Moonlit clouds after sunset. Never picks Fire, Rainbow, or Custom. Forecast changes fade over about ten seconds." },
-  { value: "exclusive", label: "Exclusive", icon: "󰮯", description: "Same forecast as Follow, but the overlay runs only when live weather matches Track only. This panel previews the tracked look until you close it. Partly cloudy and Moonlit clouds count as a match for each other. Fire, Rainbow, and Custom cannot be tracked." },
+  { value: "follow", label: "Follow", icon: "󰔏", description: "Matches the live forecast for your Omarchy location (Open-Meteo with coords, else wttr). Waits for location before the first fetch. Clear sky is Sunny; thunder is Stormy; partly cloudy becomes Moonlit clouds after sunset. Never picks Fire, Motes, Mist, Stars, Pollen, Rainbow, or Custom. Forecast changes fade over about ten seconds." },
+  { value: "exclusive", label: "Exclusive", icon: "󰮯", description: "Same forecast as Follow, but the overlay runs only when live weather matches Track only. This panel previews the tracked look until you close it. Partly cloudy and Moonlit clouds count as a match for each other. Fire, Motes, Mist, Stars, Pollen, Rainbow, and Custom cannot be tracked." },
   { value: "fire", label: "Fire", icon: "󰈸", description: "Flames along the bottom of the screen. Manual only — Follow never picks this." },
+  { value: "motes", label: "Motes", icon: "󰝥", description: "Floating glowing specks, like forest fireflies. Overlay only. Hue, saturation, size, and glow are sliders. Manual only — Follow never picks this." },
+  { value: "mist", label: "Mist", icon: "󰖑", description: "Ground mist that rolls along the bottom, opposite Cloud/Fog. Overlay only. Hue tints the haze. Manual only — Follow never picks this." },
+  { value: "stars", label: "Stars", icon: "󰓎", description: "Twinkling starfield on three slow parallax layers. Overlay only. Parallax 0 is fully still. Shooting stars are rare and brief (0 turns them off); each one picks a heading and near/far size. Manual only — Follow never picks this." },
+  { value: "pollen", label: "Pollen", icon: "󰌎", description: "Dandelion-like seeds that lift and sway. Overlay only. Hue, saturation, size, glow, and tumble are sliders. Manual only — Follow never picks this." },
   { value: "rainbow", label: "Rainbow", icon: "󰟗", description: "Primary and secondary bows opposite the sun. Invisible after sunset unless After sunset is on; then Night glow cools the bands and Night strength sets how visible they stay. Manual only — Follow never picks this. Add Rainbow on other modes shares these sliders." },
   { value: "custom", label: "Custom", icon: "󰣖", description: "Stack up to three shaders. None turns a layer off. Sliders are shared with the standalone modes (changing rain density here also changes Rain). Manual only — Follow never picks this." }
 ]
@@ -171,7 +175,7 @@ function fieldsForSettings() {
   ]
 }
 
-var shaderDetailIds = ["rain", "stormy", "snow", "fog", "sunny", "fire", "rainbow"]
+var shaderDetailIds = ["rain", "stormy", "snow", "fog", "sunny", "fire", "motes", "mist", "stars", "pollen", "rainbow"]
 
 function defaultShaderDetail(fallback) {
   var d = normalizedDetail(fallback)
@@ -215,6 +219,10 @@ function normalizedShaderId(value) {
   if (v === "cloud" || v === "clouds" || v === "cloud/fog") return "fog"
   if (v === "sun" || v === "moon" || v === "moonlight") return "sunny"
   if (v === "storm") return "stormy"
+  if (v === "fairy" || v === "fireflies" || v === "specks") return "motes"
+  if (v === "ground-mist" || v === "ground mist" || v === "rolling fog" || v === "rolling-fog") return "mist"
+  if (v === "star" || v === "sparkle" || v === "starfield") return "stars"
+  if (v === "dandelion" || v === "seeds") return "pollen"
   for (var i = 0; i < shaderDetailIds.length; i++) {
     if (shaderDetailIds[i] === v) return v
   }
@@ -247,6 +255,30 @@ var settingsEffectGuide = [
     title: "Fire",
     cost: "High",
     body: "Ground flames. Detail is FBM octaves (2→6) and extra flame layers from Medium up. Overlay only — no desktop warp."
+  },
+  {
+    shader: "motes",
+    title: "Motes",
+    cost: "Low",
+    body: "Hash-grid specks (a few cells per pixel, not a loop over every mote). Density is how many cells light up. Overlay only."
+  },
+  {
+    shader: "mist",
+    title: "Mist",
+    cost: "High",
+    body: "Ground-hugging FBM haze. Detail is octaves like Cloud/Fog. Overlay only."
+  },
+  {
+    shader: "stars",
+    title: "Stars",
+    cost: "Low",
+    body: "Hash-grid starfield (cheap: a few cells per pixel, not a loop over every star). Density is how many cells light up. Overlay only."
+  },
+  {
+    shader: "pollen",
+    title: "Pollen",
+    cost: "Low",
+    body: "Hash-grid seeds. Density is how many cells light up. Overlay only."
   },
   {
     shader: "fog",
@@ -298,13 +330,17 @@ var modeValues = {
   wintry: true,
   stormy: true,
   fire: true,
+  motes: true,
+  mist: true,
+  stars: true,
+  pollen: true,
   rainbow: true,
   custom: true,
   follow: true,
   exclusive: true
 }
 
-// Follow / Exclusive never pick fire or rainbow — same Open-Meteo / wttr groups.
+// Follow / Exclusive never pick fire, motes, mist, stars, pollen, or rainbow — same Open-Meteo / wttr groups.
 var exclusivePresets = [
   { value: "rain", label: "Rain", icon: "󰖗" },
   { value: "snow", label: "Snow", icon: "󰖘" },
@@ -407,7 +443,7 @@ var mixRecipes = {
 
 function isManualOnlyMode(value) {
   var v = String(value || "")
-  return v === "fire" || v === "rainbow" || v === "custom"
+  return v === "fire" || v === "motes" || v === "mist" || v === "stars" || v === "pollen" || v === "rainbow" || v === "custom"
 }
 
 function effectPresetEntries() {
@@ -463,7 +499,7 @@ function modeEntry(value) {
 
 function isEffectPreset(value) {
   var v = String(value || "")
-  return v === "rain" || v === "snow" || v === "fog" || v === "sunny" || v === "stormy" || v === "fire" || v === "rainbow"
+  return v === "rain" || v === "snow" || v === "fog" || v === "sunny" || v === "stormy" || v === "fire" || v === "motes" || v === "mist" || v === "stars" || v === "pollen" || v === "rainbow"
 }
 
 function isMixPreset(value) {
@@ -529,6 +565,16 @@ function shaderForVisualSlot(visual, slot, shaderA, shaderB, shaderC, params) {
   if (slot === 2 && extraRainbowLayer(visual) && layerActive(params, visual, extraRainbowLayer(visual)))
     return "rainbow"
   return ""
+}
+
+function visualUsesShader(visual, shader, shaderA, shaderB, shaderC, params) {
+  var want = String(shader || "")
+  if (!want) return false
+  for (var slot = 0; slot < 3; slot++) {
+    if (shaderForVisualSlot(visual, slot, shaderA, shaderB, shaderC, params) === want)
+      return true
+  }
+  return false
 }
 
 function slotStrength(params, visual, slot, shaderA, shaderB, shaderC) {
@@ -647,6 +693,9 @@ function normalizedMode(value) {
   if (v === "snow-squall" || v === "snow squall") return "squall"
   if (v === "wintry-mix" || v === "wintry mix") return "wintry"
   if (v === "thundershower") return "stormy"
+  if (v === "sparkle" || v === "starfield") return "stars"
+  if (v === "ground-mist" || v === "ground mist" || v === "rolling-fog" || v === "rolling fog") return "mist"
+  if (v === "dandelion" || v === "seeds") return "pollen"
   if (modeValues[v]) return v
   return "none"
 }
@@ -719,6 +768,10 @@ function labelForPreset(preset, nightFactor) {
   if (v === "wintry") return "Wintry mix"
   if (v === "stormy") return "Stormy"
   if (v === "fire") return "Fire"
+  if (v === "motes") return "Motes"
+  if (v === "mist") return "Mist"
+  if (v === "stars") return "Stars"
+  if (v === "pollen") return "Pollen"
   if (v === "rainbow") return "Rainbow"
   if (v === "custom") return "Custom"
   return labelForMode(v)
@@ -739,6 +792,10 @@ function shaderFileForPreset(preset) {
   if (v === "sunny") return "sunny.frag.qsb"
   if (v === "stormy") return "stormy.frag.qsb"
   if (v === "fire") return "fire.frag.qsb"
+  if (v === "motes") return "motes.frag.qsb"
+  if (v === "mist") return "mist.frag.qsb"
+  if (v === "stars") return "stars.frag.qsb"
+  if (v === "pollen") return "pollen.frag.qsb"
   if (v === "rainbow") return "rainbow.frag.qsb"
   return "rain.frag.qsb"
 }
@@ -787,6 +844,42 @@ var tweakFields = {
     { key: "scale", label: "Scale", kind: "slider", max: 2 },
     { key: "glow", label: "Glow", kind: "slider", max: 2 }
   ],
+  motes: [
+    { key: "density", label: "Density", kind: "slider", max: 2 },
+    { key: "speed", label: "Speed", kind: "slider", max: 2 },
+    { key: "scale", label: "Size", kind: "slider", max: 2 },
+    { key: "glow", label: "Glow", kind: "slider", max: 2 },
+    { key: "lightning", label: "Glow pulse", kind: "slider", max: 2 },
+    { key: "azimuth", label: "Hue", kind: "slider", max: 2 },
+    { key: "frequency", label: "Saturation", kind: "slider", max: 2 }
+  ],
+  mist: [
+    { key: "density", label: "Density", kind: "slider", max: 2 },
+    { key: "speed", label: "Speed", kind: "slider", max: 2 },
+    { key: "scale", label: "Size", kind: "slider", max: 2 },
+    { key: "glow", label: "Glow", kind: "slider", max: 2 },
+    { key: "azimuth", label: "Hue", kind: "slider", max: 2 }
+  ],
+  stars: [
+    { key: "density", label: "Density", kind: "slider", max: 2.4 },
+    { key: "speed", label: "Twinkle amount", kind: "slider", max: 2 },
+    { key: "scale", label: "Size", kind: "slider", max: 2 },
+    { key: "glow", label: "Glow", kind: "slider", max: 2 },
+    { key: "sheen", label: "Parallax", kind: "slider", max: 2 },
+    { key: "lightning", label: "Shooting stars", kind: "slider", max: 2 },
+    { key: "azimuth", label: "Hue", kind: "slider", max: 2 },
+    { key: "frequency", label: "Saturation", kind: "slider", max: 2 }
+  ],
+  pollen: [
+    { key: "density", label: "Density", kind: "slider", max: 2 },
+    { key: "speed", label: "Speed", kind: "slider", max: 2 },
+    { key: "scale", label: "Size", kind: "slider", max: 2 },
+    { key: "glow", label: "Glow", kind: "slider", max: 2 },
+    { key: "sheen", label: "Wind", kind: "slider", max: 2 },
+    { key: "lightning", label: "Tumble", kind: "slider", max: 2 },
+    { key: "azimuth", label: "Hue", kind: "slider", max: 2 },
+    { key: "frequency", label: "Saturation", kind: "slider", max: 2 }
+  ],
   rainbow: [
     { key: "glow", label: "Glow", kind: "slider", max: 2 },
     { key: "density", label: "Vividness", kind: "slider", max: 2 },
@@ -809,6 +902,10 @@ function defaultParams() {
     sunny: { strength: 1, glow: 1, speed: 1, density: 1.2, azimuth: 1.2, distance: 1, enableC: 0, strengthC: 0.65 },
     stormy: { strength: 1, density: 1, speed: 1.15, scale: 1, sheen: 0.6, refract: 1, lightning: 1.5, frequency: 1, glow: 1, azimuth: 1, enableC: 0, strengthC: 0.65 },
     fire: { strength: 1, density: 1, speed: 0.5, scale: 1, glow: 1, enableC: 0, strengthC: 0.65 },
+    motes: { strength: 1, density: 1, speed: 0.7, scale: 1, glow: 1.1, lightning: 1, azimuth: 0.24, frequency: 1.1, enableC: 0, strengthC: 0.65 },
+    mist: { strength: 1, density: 1.1, speed: 0.55, scale: 1.15, glow: 0.85, azimuth: 0.58, enableC: 0, strengthC: 0.65 },
+    stars: { strength: 1, density: 1.7, speed: 0.85, scale: 0.4, glow: 0.9, sheen: 0.7, lightning: 0.55, azimuth: 0.58, frequency: 0.2, enableC: 0, strengthC: 0.65 },
+    pollen: { strength: 1, density: 0.75, speed: 0.5, scale: 1.1, glow: 0.45, sheen: 0, lightning: 0.85, azimuth: 0.14, frequency: 0.55, enableC: 0, strengthC: 0.65 },
     rainbow: { strength: 1, glow: 1, density: 1, scale: 1, azimuth: 0.8, lightning: 0.65, distance: 1, speed: 1, nightVisible: 0, nightTint: 1, nightStrength: 0.7 }
   }
   for (var id in mixRecipes) {
@@ -970,7 +1067,7 @@ function fieldMaximum(mode, key) {
     if (fields[i].key === k && fields[i].max) return fields[i].max
   }
   var m = normalizedMode(mode)
-  if (k === "density" && (m === "rain" || m === "stormy")) return 2.4
+  if (k === "density" && (m === "rain" || m === "stormy" || m === "stars")) return 2.4
   if (k === "scale" && (m === "rain" || m === "stormy")) return 2
   if (k === "scale" && m === "rainbow") return 4
   return 2
@@ -1063,6 +1160,10 @@ var overlayQsbFiles = [
   "sunny.frag.qsb",
   "stormy.frag.qsb",
   "fire.frag.qsb",
+  "motes.frag.qsb",
+  "mist.frag.qsb",
+  "stars.frag.qsb",
+  "pollen.frag.qsb",
   "rainbow.frag.qsb",
   "wallpaper_warp.frag.qsb"
 ]
