@@ -8,7 +8,7 @@ var modes = [
   { value: "rain", label: "Rain", icon: "󰖗", description: "Beads and trails on glass. With Distortion on and Refract above 0, drops warp the real desktop (painted rain is skipped so it is not drawn twice). Clicks through a warped drop land a little off. Refract 0 is the painted look only." },
   { value: "snow", label: "Snow", icon: "󰖘", description: "Falling flakes with a bit of depth. Overlay only — no desktop warp. Lower Effect detail draws fewer flake layers." },
   { value: "fog", label: "Cloud/Fog", icon: "󰖑", description: "Soft FBM clouds, denser toward the upper sky, with the very top and bottom faded so the desktop stays readable. Overlay only." },
-  { value: "sunny", label: "Sunny", icon: "󰖙", description: "Warm glow, faint shafts, and dust. Position and Height place the light (Height 0 is just above the top; raise it to pull rays from on-screen). Source 0 is a point; raise it for a glowing sphere the shafts leave from. Over civil twilight (sun 0° to −6°, a few minutes) the color eases to cool moonlight." },
+  { value: "sunny", label: "Sunny", icon: "󰖙", description: "Warm glow, faint shafts, and dust. Position and Height place the light (Height 0 is just above the top; raise it to pull rays from on-screen). Source 0 is a point; raise it for a glowing sphere the shafts leave from. Color follows civil twilight unless Override hue is on." },
   { value: "partly", label: "Partly cloudy", icon: "󰖕", description: "Clouds plus sun. The sun layer uses the same twilight shift to moonlight as Sunny. In Follow, this condition becomes Moonlit clouds after sunset." },
   { value: "overcast", label: "Overcast", icon: "󰖐", description: "Heavy clouds with a faint sun (same twilight-to-moonlight shift as Sunny)." },
   { value: "sunshower", label: "Sun shower", icon: "󰖖", description: "Sun and rain together. Rain refraction follows the Rain rules. Add Rainbow is off by default; that bow fades after sunset unless After sunset is on." },
@@ -719,8 +719,8 @@ function normalizedExclusivePreset(value) {
   return "snow"
 }
 
-function labelForExclusivePreset(value, nightFactor) {
-  return labelForPreset(normalizedExclusivePreset(value), nightFactor)
+function labelForExclusivePreset(value, nightFactor, params) {
+  return labelForPreset(normalizedExclusivePreset(value), nightFactor, params)
 }
 
 function labelForMode(value) {
@@ -731,11 +731,18 @@ function iconForMode(value) {
   return modeEntry(value).icon
 }
 
-function descriptionForPreset(preset, nightFactor) {
+function moonlightLook(preset, nightFactor, params) {
   var v = String(preset || "")
-  if (v === "sunny" && moonlightActive(nightFactor))
+  if ((v === "sunny" || v === "partly") && paramValue(params, "sunny", "overrideHue", 0) >= 0.5)
+    return false
+  return moonlightActive(nightFactor)
+}
+
+function descriptionForPreset(preset, nightFactor, params) {
+  var v = String(preset || "")
+  if (v === "sunny" && moonlightLook(v, nightFactor, params))
     return "Cool moonlight wash, shafts, and faint dust. Position, Height, and Source place the light (same sliders as Sunny). Color eases over civil twilight (sun 0° to −6°, a few minutes)."
-  if (v === "partly" && moonlightActive(nightFactor))
+  if (v === "partly" && moonlightLook(v, nightFactor, params))
     return "Broken clouds with moonlight instead of sun (same twilight blend as Sunny). Follow would map this to Moonlit clouds."
   var entry = modeEntry(v)
   return entry && entry.description ? String(entry.description) : ""
@@ -745,13 +752,13 @@ function moonlightActive(nightFactor) {
   return parseFloat(nightFactor) >= 0.5
 }
 
-function labelForPreset(preset, nightFactor) {
+function labelForPreset(preset, nightFactor, params) {
   var v = String(preset || "")
   if (v === "none") return "Off"
   if (v === "fog") return "Cloud/Fog"
   if (v === "rain") return "Rain"
   if (v === "snow") return "Snow"
-  if (v === "sunny") return moonlightActive(nightFactor) ? "Moonlight" : "Sunny"
+  if (v === "sunny") return moonlightLook(v, nightFactor, params) ? "Moonlight" : "Sunny"
   if (v === "partly") return "Partly cloudy"
   if (v === "overcast") return "Overcast"
   if (v === "sunshower") return "Sun shower"
@@ -770,10 +777,10 @@ function labelForPreset(preset, nightFactor) {
   return labelForMode(v)
 }
 
-function iconForPreset(preset, nightFactor) {
+function iconForPreset(preset, nightFactor, params) {
   var v = String(preset || "")
-  if (v === "sunny" && moonlightActive(nightFactor)) return "󰖔"
-  if (v === "partly" && moonlightActive(nightFactor)) return "󰖔"
+  if (v === "sunny" && moonlightLook(v, nightFactor, params)) return "󰖔"
+  if (v === "partly" && moonlightLook(v, nightFactor, params)) return "󰖔"
   return iconForMode(v)
 }
 
@@ -820,7 +827,9 @@ var tweakFields = {
     { key: "azimuth", label: "Position", kind: "slider", max: 2 },
     { key: "lightning", label: "Height", kind: "slider", min: -2, max: 2 },
     { key: "scale", label: "Source", kind: "slider", max: 2 },
-    { key: "distance", label: "Distance", kind: "slider", max: 2 }
+    { key: "distance", label: "Distance", kind: "slider", max: 2 },
+    { key: "overrideHue", label: "Override hue", kind: "check", max: 1 },
+    { key: "frequency", label: "Hue", kind: "slider", max: 2, requires: "overrideHue" }
   ],
   stormy: [
     { key: "density", label: "Density", kind: "slider", max: 2.4 },
@@ -896,7 +905,7 @@ function defaultParams() {
     rain: { strength: 1, density: 0.8, speed: 1, scale: 1, glow: 0.6, darken: 1, refract: 1, enableC: 0, strengthC: 0.65 },
     snow: { strength: 1, density: 0.8, speed: 1, scale: 0.8, glow: 0.3, enableC: 0, strengthC: 0.65 },
     fog: { strength: 1, density: 1, speed: 0.9, scale: 1, enableC: 0, strengthC: 0.65 },
-    sunny: { strength: 1, glow: 1, speed: 1, density: 1.2, azimuth: 1.2, lightning: 0, scale: 0, distance: 1, enableC: 0, strengthC: 0.65 },
+    sunny: { strength: 1, glow: 1, speed: 1, density: 1.2, azimuth: 1.2, lightning: 0, scale: 0, distance: 1, overrideHue: 0, frequency: 0.24, enableC: 0, strengthC: 0.65 },
     stormy: { strength: 1, density: 1, speed: 1.15, scale: 1, sheen: 0.6, refract: 1, lightning: 1.5, frequency: 1, glow: 1, azimuth: 1, enableC: 0, strengthC: 0.65 },
     fire: { strength: 1, density: 1, speed: 0.5, scale: 1, glow: 1, enableC: 0, strengthC: 0.65 },
     motes: { strength: 1, density: 1, speed: 0.7, scale: 1, glow: 1.1, lightning: 1, azimuth: 0.24, frequency: 1.1, enableC: 0, strengthC: 0.65 },
@@ -1052,7 +1061,7 @@ function fieldsForMode(mode) {
 
 function isCheckParam(key) {
   var k = String(key || "")
-  return k === "enableC" || k === "nightVisible"
+  return k === "enableC" || k === "nightVisible" || k === "overrideHue"
 }
 
 function fieldMaximum(mode, key) {

@@ -39,7 +39,7 @@ omarchy-shell ogarza.plugins.weather power on
 | `mode` `[id]` | `none`, `rain`, `snow`, `fog`, `sunny`, `partly`, `overcast`, `sunshower`, `moonlit`, `drizzle`, `squall`, `wintry`, `stormy`, `follow`, `exclusive`, `fire`, `motes`, `mist`, `stars`, `pollen`, `rainbow`, `custom` |
 | `track` `[preset]` | Exclusive track only (not fire/motes/mist/stars/pollen/rainbow/custom) |
 | `layer` `<a\|b\|c>` `[shader]` | Custom mode only. Slot shader: `rain`, `snow`, `fog`, `sunny`, `stormy`, `fire`, `motes`, `mist`, `stars`, `pollen`, `rainbow`, or `none` |
-| `param` `<preset>` `<key>` `[value]` | Slider. `%` ok. **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition id (`sunshower`, `rain`, …). `nightVisible` same. |
+| `param` `<preset>` `<key>` `[value]` | Slider. `%` ok. **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition id (`sunshower`, `rain`, …). `nightVisible` and `overrideHue` same. |
 | `quality` `[low\|medium\|high\|extreme]` | Sets both Resolution and Effect detail. Read may be `resolution,detail` if they differ |
 | `resolution` `[low\|medium\|high\|native]` | Overlay render scale |
 | `detail` `[level]` or `rain high` etc. | All shaders that have Effect detail, or one of rain/stormy/snow/fog/sunny/fire/motes/mist/stars/rainbow. Pollen has no detail row. Blank read is one word if they match |
@@ -59,7 +59,7 @@ Shader presets (`param rain density`, not the mix id):
 | `rain` | `density` (0–2.4), `speed`, `scale` (0–2), `glow` (sheen), `darken`, `refract` (0–1) |
 | `snow` | `density`, `speed`, `scale`, `glow` |
 | `fog` | `density`, `speed`, `scale` |
-| `sunny` | `glow`, `speed`, `density` (dust), `azimuth` (position), `lightning` (height; −2–2, 0 = just above the top), `scale` (source; 0 = point, up = sphere), `distance` |
+| `sunny` | `glow`, `speed`, `density` (dust), `azimuth` (position), `lightning` (height; −2–2, 0 = just above the top), `scale` (source; 0 = point, up = sphere), `distance`, `overrideHue` (`on`/`off`/`toggle`), `frequency` (hue when override is on) |
 | `stormy` | `density` (0–2.4), `speed`, `scale` (0–2), `sheen`, `refract`, `lightning`, `frequency`, `glow` (gloom), `azimuth` |
 | `fire` | `density`, `speed`, `scale`, `glow` |
 | `motes` | `density`, `speed`, `scale` (size), `glow`, `lightning` (glow pulse), `azimuth` (hue 0–2), `frequency` (saturation) |
@@ -77,7 +77,7 @@ Factory defaults (stored numbers). Start from these or from the live value (`par
 | `rain` | strength 1, density 0.8, speed 1, **scale 1**, glow 0.6, darken 1, refract 1, enableC off, strengthC 0.65 |
 | `snow` | strength 1, density 0.8, speed 1, **scale 0.8**, glow 0.3, enableC off, strengthC 0.65 |
 | `fog` | strength 1, density 1, speed 0.9, **scale 1**, enableC off, strengthC 0.65 |
-| `sunny` | strength 1, glow 1, speed 1, density 1.2, azimuth 1.2, lightning 0 (height), **scale 0** (point source), distance 1, enableC off, strengthC 0.65 |
+| `sunny` | strength 1, glow 1, speed 1, density 1.2, azimuth 1.2, lightning 0 (height), **scale 0** (point source), distance 1, overrideHue off, frequency 0.24 (hue), enableC off, strengthC 0.65 |
 | `stormy` | strength 1, density 1, speed 1.15, **scale 1**, sheen 0.6, refract 1, lightning 1.5, frequency 1, glow 1, azimuth 1, enableC off, strengthC 0.65 |
 | `fire` | strength 1, density 1, speed 0.5, **scale 1**, glow 1, enableC off, strengthC 0.65 |
 | `motes` | strength 1, density 1, speed 0.7, **scale 1**, glow 1.1, lightning 1, azimuth 0.24, frequency 1.1, enableC off, strengthC 0.65 |
@@ -158,7 +158,7 @@ If fire is on A, use `strengthA`. Do not set `param fire strength` for this.
 
 - “Raining kind of hard” → raise `param rain density` from current/default 0.8 (e.g. 1.2–1.5). Leave scale at 1 unless they want bigger drops.
 - “Make it beautiful” on sun shower / rain / sunny → `param <condition> enableC on` (Add Rainbow). Do not max scale.
-- Rays from mid-screen → `param sunny lightning` around 1 (0 is just above the top). Horizontal is `param sunny azimuth`. Ball of light → raise `param sunny scale` from 0 (point) toward 1–2 (sphere).
+- Rays from mid-screen → `param sunny lightning` around 1 (0 is just above the top). Horizontal is `param sunny azimuth`. Ball of light → raise `param sunny scale` from 0 (point) toward 1–2 (sphere). Lock color off the clock → `param sunny overrideHue on` then `param sunny frequency` (hue).
 - Forest fireflies / fairy lights → `mode motes` then `power on`. More specks → `param motes density`. Color is `param motes azimuth` (hue) and `param motes frequency` (saturation). Size `scale`, halo `glow`, breathe `lightning`.
 - Night sparkle / stars → `mode stars` then `power on`. Still field → `param stars sheen 0`. No twinkle → `param stars speed 0`. Harder pulse → raise `param stars speed` (amount, not rate). No meteors → `param stars lightning 0`. `mode sparkle` is the same as Stars.
 - Ground mist / rolling fog → `mode mist` then `power on`. Not Cloud/Fog (`fog`). Shorter denser bank → lower `param mist lightning`. Lift off the floor → raise `param mist sheen`. Heavier on the floor / below the bezel → negative `param mist sheen`.

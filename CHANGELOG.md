@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.3
+
+- Sunny / Moon **Override hue** (`overrideHue`) ignores twilight; **Hue** is `frequency` (0–2). Shared with mixes that use the sun shader.
+
 ## 1.9.2
 
 - Mist **Start** (`sheen`, −2–2, 0 = on the floor; negative sits the bank lower) and **Height** (`lightning`) pack the haze (low Height is a dense slab, not a faded line).

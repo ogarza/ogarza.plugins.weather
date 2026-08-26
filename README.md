@@ -2,7 +2,7 @@
 
 Fullscreen weather on your Omarchy desktop: rain on glass, snow, clouds, sun, storms, fire, motes, mist, stars, pollen, rainbows, and mixes. Most of it is a transparent overlay. Rain refraction goes through Hyprland (or the wallpaper warp) so drops warp the real desktop, not a painted copy.
 
-Plugin id: `ogarza.plugins.weather` · version **1.9.2**
+Plugin id: `ogarza.plugins.weather` · version **1.9.3**
 
 ## Install
 
@@ -97,7 +97,7 @@ Mode changes in the panel fade over about two seconds. Follow fades forecast cha
 | Rain | Glass beads and trails. Hyprland **Refract** warps the desktop (painted rain is skipped while that is live). Refract 0 is painted only. |
 | Snow | Falling flakes (overlay only; lower Effect detail uses fewer layers) |
 | Cloud/Fog | Soft clouds, denser high up; top and bottom faded so the desktop stays readable |
-| Sunny | Warm glow by day. **Position** and **Height** place the light (Height 0 is just above the top). **Source** 0 is a point; raise it for a sphere. Over civil twilight (sun 0° to −6°, a few minutes) it eases to cool moonlight |
+| Sunny | Warm glow by day. **Position** and **Height** place the light. **Source** 0 is a point; raise it for a sphere. Color follows twilight unless **Override hue** is on |
 | Partly cloudy | Clouds and sun (sun→moonlight like Sunny). Follow becomes Moonlit clouds after sunset |
 | Overcast | Heavy clouds, faint sun (same twilight rules as Sunny) |
 | Sun shower | Sun and rain. Optional rainbow fades at night unless **After sunset** is on |
@@ -146,7 +146,8 @@ Columns to the right of the mode list show a short description and the sliders f
 - **Brightness** — snow flakes
 - **Glow** — sun, fire, motes, mist, stars, pollen, or rainbow brightness
 - **Glow pulse** — each mote’s halo breathes on its own clock (0 is steady; 200% is a strong staggered blink)
-- **Hue** / **Saturation** — mote, star, pollen, and mist color (Hue walks the wheel; Saturation 0 is near-white; mist has Hue only)
+- **Hue** / **Saturation** — mote, star, pollen, and mist color (Hue walks the wheel; Saturation 0 is near-white; mist has Hue only). Sunny **Hue** only shows when **Override hue** is on
+- **Override hue** — Sunny / Moon: ignore twilight and pick **Hue** yourself
 - **Vividness** — rainbow bands
 - **Dust** — motes in sunny / moonlight
 - **Position** / **Height** / **Source** / **Distance** — sun and moon placement (Height 0 is just above the top; Source 0 is a point, higher is a sphere the shafts leave from)
@@ -178,7 +179,7 @@ omarchy-shell ogarza.plugins.weather <command> [args]
 | `mode` `[id]` | Set the mode (`rain`, `follow`, `custom`, …). Does not change power |
 | `track` / `exclusive` `[preset]` | Exclusive **Track only** (`rain`, `stormy`, …) |
 | `layer` `<a\|b\|c>` `[shader]` | Custom layer shader (`none` turns a slot off) |
-| `param` `<preset>` `<key>` `[value]` | Read or set a slider. Value is the stored number, or a percent (`80%`). **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition (`sunshower`, `rain`, …), not on `follow`. `nightVisible` is `on`/`off`/`toggle` |
+| `param` `<preset>` `<key>` `[value]` | Read or set a slider. Value is the stored number, or a percent (`80%`). **Add Rainbow** is `enableC` `on`/`off`/`toggle` on the condition (`sunshower`, `rain`, …), not on `follow`. `nightVisible` and Sunny `overrideHue` are `on`/`off`/`toggle` |
 | `reset` | Restore every mode’s sliders (does not change mode, resolution, detail, Distortion, or target) |
 | `refresh` | Fetch Follow / Exclusive weather again |
 | `preview <preset>` | Switch to Follow and fade to that look |

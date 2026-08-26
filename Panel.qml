@@ -52,7 +52,7 @@ Panel {
   readonly property string tweakHeading: {
     if (!root.showTweaks) return "Parameters"
     var night = fx ? fx.nightFactor : 0
-    return Model.labelForPreset(root.tweakPreset, night)
+    return Model.labelForPreset(root.tweakPreset, night, fx ? fx.params : null)
   }
   readonly property string tweakBlurb: {
     var night = fx ? fx.nightFactor : 0
@@ -63,9 +63,9 @@ Panel {
     if (fx && fx.mode === "follow" && !root.tweakPreset)
       desc = "Waiting for the current forecast."
     else if (!root.tweakPreset)
-      desc = Model.descriptionForPreset(fx ? fx.mode : "none", night)
+      desc = Model.descriptionForPreset(fx ? fx.mode : "none", night, fx ? fx.params : null)
     else
-      desc = Model.descriptionForPreset(root.tweakPreset, night)
+      desc = Model.descriptionForPreset(root.tweakPreset, night, fx ? fx.params : null)
     if (note && desc) return note + "\n\n" + desc
     return note || desc
   }

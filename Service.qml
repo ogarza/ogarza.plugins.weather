@@ -303,15 +303,15 @@ Item {
 
   readonly property string icon: {
     if (root.mode === "follow")
-      return Model.iconForPreset(root.weatherPreset || "sunny", root.nightFactor)
+      return Model.iconForPreset(root.weatherPreset || "sunny", root.nightFactor, root.params)
     if (root.mode === "exclusive")
-      return Model.iconForPreset(root.exclusivePreset, root.nightFactor)
-    return Model.iconForPreset(root.mode, root.nightFactor)
+      return Model.iconForPreset(root.exclusivePreset, root.nightFactor, root.params)
+    return Model.iconForPreset(root.mode, root.nightFactor, root.params)
   }
 
   readonly property string statusText: {
     if (root.mode === "exclusive") {
-      var wanted = Model.labelForExclusivePreset(root.exclusivePreset, root.nightFactor)
+      var wanted = Model.labelForExclusivePreset(root.exclusivePreset, root.nightFactor, root.params)
       if (root.exclusivePreview && !root.exclusiveMatch)
         return "Ex. · " + wanted + " · preview"
       if (!root.active) return "Overlay off"
@@ -321,22 +321,22 @@ Item {
     if (!root.active) return "Overlay off"
     if (root.mode === "none") return "Overlay off"
     if (root.mode === "follow")
-      return "Following · " + Model.labelForPreset(root.weatherPreset || "sunny", root.nightFactor)
-    if (root.mode === "sunny") return Model.labelForPreset("sunny", root.nightFactor)
+      return "Following · " + Model.labelForPreset(root.weatherPreset || "sunny", root.nightFactor, root.params)
+    if (root.mode === "sunny") return Model.labelForPreset("sunny", root.nightFactor, root.params)
     return Model.labelForMode(root.mode)
   }
 
   readonly property string tooltipText: {
     var state = root.active ? "on" : "off"
     if (root.mode === "follow")
-      return root.pluginId + " " + state + " · Follow · " + Model.labelForPreset(root.weatherPreset || "sunny", root.nightFactor)
+      return root.pluginId + " " + state + " · Follow · " + Model.labelForPreset(root.weatherPreset || "sunny", root.nightFactor, root.params)
     if (root.mode === "exclusive") {
-      var wanted = Model.labelForExclusivePreset(root.exclusivePreset, root.nightFactor)
+      var wanted = Model.labelForExclusivePreset(root.exclusivePreset, root.nightFactor, root.params)
       var wait = root.exclusiveMatch ? "" : " · waiting"
       return root.pluginId + " " + state + " · Exclusive · " + wanted + wait
     }
     if (root.mode === "sunny")
-      return root.pluginId + " " + state + " · " + Model.labelForPreset("sunny", root.nightFactor)
+      return root.pluginId + " " + state + " · " + Model.labelForPreset("sunny", root.nightFactor, root.params)
     return root.pluginId + " " + state + " · " + Model.labelForMode(root.mode)
   }
 
@@ -1111,7 +1111,7 @@ Item {
     readonly property real layerScale: Model.paramValue(root.params, preset || "rain", "scale", 1)
     readonly property real layerGlow: Model.paramValue(root.params, preset || "sunny", "glow", 1)
     readonly property real layerLightning: Model.paramValue(root.params, preset || "stormy", "lightning", 1)
-    readonly property real layerFrequency: Model.paramValue(root.params, preset || "stormy", "frequency", 1)
+    readonly property real layerFrequency: Model.paramValue(root.params, preset || "stormy", "frequency", preset === "sunny" ? 0.24 : 1)
     readonly property real layerAzimuth: Model.paramValue(
       root.params,
       preset === "sunny" || preset === "stormy" || preset === "rainbow" || preset === "motes" || preset === "mist" || preset === "stars" || preset === "pollen" ? preset : "sunny",
@@ -1208,6 +1208,8 @@ Item {
           return Model.paramValue(root.params, "rainbow", "nightVisible", 0)
         if (wlayer.preset === "mist")
           return Model.paramValue(root.params, "mist", "sheen", 0)
+        if (wlayer.preset === "sunny")
+          return Model.paramValue(root.params, "sunny", "overrideHue", 0)
         if (wlayer.preset === "stormy" || wlayer.preset === "stars" || wlayer.preset === "pollen")
           return Model.paramValue(root.params, wlayer.preset, "sheen",
             wlayer.preset === "stars" ? 0.7 : (wlayer.preset === "pollen" ? 0 : 0.6))
