@@ -8,7 +8,7 @@ var modes = [
   { value: "rain", label: "Rain", icon: "󰖗", description: "Beads and trails on glass. With Distortion on and Refract above 0, drops warp the real desktop (painted rain is skipped so it is not drawn twice). Clicks through a warped drop land a little off. Refract 0 is the painted look only." },
   { value: "snow", label: "Snow", icon: "󰖘", description: "Falling flakes with a bit of depth. Overlay only — no desktop warp. Lower Effect detail draws fewer flake layers." },
   { value: "fog", label: "Cloud/Fog", icon: "󰖑", description: "Soft FBM clouds, denser toward the upper sky, with the very top and bottom faded so the desktop stays readable. Overlay only." },
-  { value: "sunny", label: "Sunny", icon: "󰖙", description: "Warm glow, faint shafts, and dust. Over civil twilight (sun 0° to −6°, a few minutes) the color eases to cool moonlight." },
+  { value: "sunny", label: "Sunny", icon: "󰖙", description: "Warm glow, faint shafts, and dust. Position and Height place the light (Height 0 is just above the top; raise it to pull rays from on-screen). Source 0 is a point; raise it for a glowing sphere the shafts leave from. Over civil twilight (sun 0° to −6°, a few minutes) the color eases to cool moonlight." },
   { value: "partly", label: "Partly cloudy", icon: "󰖕", description: "Clouds plus sun. The sun layer uses the same twilight shift to moonlight as Sunny. In Follow, this condition becomes Moonlit clouds after sunset." },
   { value: "overcast", label: "Overcast", icon: "󰖐", description: "Heavy clouds with a faint sun (same twilight-to-moonlight shift as Sunny)." },
   { value: "sunshower", label: "Sun shower", icon: "󰖖", description: "Sun and rain together. Rain refraction follows the Rain rules. Add Rainbow is off by default; that bow fades after sunset unless After sunset is on." },
@@ -21,7 +21,7 @@ var modes = [
   { value: "exclusive", label: "Exclusive", icon: "󰮯", description: "Same forecast as Follow, but the overlay runs only when live weather matches Track only. This panel previews the tracked look until you close it. Partly cloudy and Moonlit clouds count as a match for each other. Fire, Motes, Mist, Stars, Pollen, Rainbow, and Custom cannot be tracked." },
   { value: "fire", label: "Fire", icon: "󰈸", description: "Flames along the bottom of the screen. Manual only — Follow never picks this." },
   { value: "motes", label: "Motes", icon: "󰝥", description: "Floating glowing specks, like forest fireflies. Overlay only. Hue, saturation, size, and glow are sliders. Manual only — Follow never picks this." },
-  { value: "mist", label: "Mist", icon: "󰖑", description: "Ground mist that rolls along the bottom, opposite Cloud/Fog. Overlay only. Hue tints the haze. Manual only — Follow never picks this." },
+  { value: "mist", label: "Mist", icon: "󰖑", description: "Ground mist that rolls along the bottom, opposite Cloud/Fog. Overlay only. Start lifts the bank off the floor (negative sits it lower). Height packs the haze (low is a dense slab, not a thin line). Hue tints the haze. Manual only — Follow never picks this." },
   { value: "stars", label: "Stars", icon: "󰓎", description: "Twinkling starfield on three slow parallax layers. Overlay only. Parallax 0 is fully still. Shooting stars are rare and brief (0 turns them off); each one picks a heading and near/far size. Manual only — Follow never picks this." },
   { value: "pollen", label: "Pollen", icon: "󰌎", description: "Dandelion-like seeds that lift and sway. Overlay only. Hue, saturation, size, glow, and tumble are sliders. Manual only — Follow never picks this." },
   { value: "rainbow", label: "Rainbow", icon: "󰟗", description: "Primary and secondary bows opposite the sun. Invisible after sunset unless After sunset is on; then Night glow cools the bands and Night strength sets how visible they stay. Manual only — Follow never picks this. Add Rainbow on other modes shares these sliders." },
@@ -734,7 +734,7 @@ function iconForMode(value) {
 function descriptionForPreset(preset, nightFactor) {
   var v = String(preset || "")
   if (v === "sunny" && moonlightActive(nightFactor))
-    return "Cool moonlight wash, shafts, and faint dust. Color eases over civil twilight (sun 0° to −6°, a few minutes)."
+    return "Cool moonlight wash, shafts, and faint dust. Position, Height, and Source place the light (same sliders as Sunny). Color eases over civil twilight (sun 0° to −6°, a few minutes)."
   if (v === "partly" && moonlightActive(nightFactor))
     return "Broken clouds with moonlight instead of sun (same twilight blend as Sunny). Follow would map this to Moonlit clouds."
   var entry = modeEntry(v)
@@ -818,6 +818,8 @@ var tweakFields = {
     { key: "speed", label: "Speed", kind: "slider", max: 2 },
     { key: "density", label: "Dust", kind: "slider", max: 2 },
     { key: "azimuth", label: "Position", kind: "slider", max: 2 },
+    { key: "lightning", label: "Height", kind: "slider", min: -2, max: 2 },
+    { key: "scale", label: "Source", kind: "slider", max: 2 },
     { key: "distance", label: "Distance", kind: "slider", max: 2 }
   ],
   stormy: [
@@ -851,6 +853,8 @@ var tweakFields = {
     { key: "speed", label: "Speed", kind: "slider", max: 2 },
     { key: "scale", label: "Size", kind: "slider", max: 2 },
     { key: "glow", label: "Glow", kind: "slider", max: 2 },
+    { key: "sheen", label: "Start", kind: "slider", min: -2, max: 2 },
+    { key: "lightning", label: "Height", kind: "slider", max: 2 },
     { key: "azimuth", label: "Hue", kind: "slider", max: 2 }
   ],
   stars: [
@@ -892,11 +896,11 @@ function defaultParams() {
     rain: { strength: 1, density: 0.8, speed: 1, scale: 1, glow: 0.6, darken: 1, refract: 1, enableC: 0, strengthC: 0.65 },
     snow: { strength: 1, density: 0.8, speed: 1, scale: 0.8, glow: 0.3, enableC: 0, strengthC: 0.65 },
     fog: { strength: 1, density: 1, speed: 0.9, scale: 1, enableC: 0, strengthC: 0.65 },
-    sunny: { strength: 1, glow: 1, speed: 1, density: 1.2, azimuth: 1.2, distance: 1, enableC: 0, strengthC: 0.65 },
+    sunny: { strength: 1, glow: 1, speed: 1, density: 1.2, azimuth: 1.2, lightning: 0, scale: 0, distance: 1, enableC: 0, strengthC: 0.65 },
     stormy: { strength: 1, density: 1, speed: 1.15, scale: 1, sheen: 0.6, refract: 1, lightning: 1.5, frequency: 1, glow: 1, azimuth: 1, enableC: 0, strengthC: 0.65 },
     fire: { strength: 1, density: 1, speed: 0.5, scale: 1, glow: 1, enableC: 0, strengthC: 0.65 },
     motes: { strength: 1, density: 1, speed: 0.7, scale: 1, glow: 1.1, lightning: 1, azimuth: 0.24, frequency: 1.1, enableC: 0, strengthC: 0.65 },
-    mist: { strength: 1, density: 1.1, speed: 0.55, scale: 1.15, glow: 0.85, azimuth: 0.58, enableC: 0, strengthC: 0.65 },
+    mist: { strength: 1, density: 1.1, speed: 0.55, scale: 1.15, glow: 0.85, sheen: 0, lightning: 1.5, azimuth: 0.58, enableC: 0, strengthC: 0.65 },
     stars: { strength: 1, density: 1.7, speed: 0.85, scale: 0.4, glow: 0.9, sheen: 0.7, lightning: 0.55, azimuth: 0.58, frequency: 0.2, enableC: 0, strengthC: 0.65 },
     pollen: { strength: 1, density: 0.75, speed: 0.5, scale: 1.1, glow: 0.45, sheen: 0, lightning: 0.85, azimuth: 0.14, frequency: 0.55, enableC: 0, strengthC: 0.65 },
     rainbow: { strength: 1, glow: 1, density: 1, scale: 1, azimuth: 0.8, lightning: 0.65, distance: 1, speed: 1, nightVisible: 0, nightTint: 1, nightStrength: 0.7 }

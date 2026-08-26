@@ -1206,9 +1206,11 @@ Item {
       property real sheen: {
         if (wlayer.preset === "rainbow")
           return Model.paramValue(root.params, "rainbow", "nightVisible", 0)
-        if (wlayer.preset === "stormy" || wlayer.preset === "stars")
+        if (wlayer.preset === "mist")
+          return Model.paramValue(root.params, "mist", "sheen", 0)
+        if (wlayer.preset === "stormy" || wlayer.preset === "stars" || wlayer.preset === "pollen")
           return Model.paramValue(root.params, wlayer.preset, "sheen",
-            wlayer.preset === "stars" ? 0.7 : 0.6)
+            wlayer.preset === "stars" ? 0.7 : (wlayer.preset === "pollen" ? 0 : 0.6))
         return Model.paramValue(root.params, "rain", "darken", 1)
       }
       property real lightning: wlayer.layerLightning

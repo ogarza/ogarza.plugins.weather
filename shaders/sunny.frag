@@ -43,16 +43,22 @@ void main() {
     float az = clamp(azimuth, 0.0, 2.0);
     float dAmt = clamp(sunDistance, 0.0, 2.0);
     float sunX = aspect * mix(-0.35, 2.01, az * 0.5);
-    vec2 sun = vec2(sunX, -0.12);
+    float sunY = -0.12 + clamp(lightning, -2.0, 2.0) * 0.58;
+    vec2 sun = vec2(sunX, sunY);
     vec2 delta = p - sun;
     float angle = atan(delta.y, delta.x);
+    float radial = length(delta);
+
+    float srcR = mix(0.0, 0.30, clamp(scale, 0.0, 2.0) * 0.5);
+    float distSurf = max(radial - srcR, 0.0);
+    float radialSafe = max(radial, 1e-5);
 
     // Wide depth range so the slider is obvious. 1.0 is the original cone.
     float z = mix(0.06, 7.5, pow(dAmt * 0.5, 0.85));
     float zRef = mix(0.06, 7.5, pow(0.5, 0.85));
     float fall = z / zRef;
-    float dist = length(vec3(delta, z));
-    float distScreen = length(delta) * fall;
+    float dist = length(vec3(delta * (distSurf / radialSafe), z));
+    float distScreen = distSurf * fall;
 
     float glowAmt = clamp(glow, 0.0, 2.0);
     float n = clamp(night, 0.0, 1.0);
@@ -69,22 +75,28 @@ void main() {
         nightWash += exp(-distScreen * 3.6) * 0.06;
     }
     float sunGlow = mix(dayWash, nightWash, n) * glowAmt;
+    if (srcR > 0.001)
+        sunGlow += (1.0 - smoothstep(srcR * 0.52, srcR, radial)) * mix(0.34, 0.26, n) * glowAmt;
 
-    float nRays = mix(2.4, 12.0, dAmt * 0.5);
+    // Integer lobe counts so sin(n * atan2) is 2π-periodic (no left-side seam).
+    float nRays = max(2.0, floor(mix(3.0, 12.0, dAmt * 0.5) + 0.5));
+    float nRays2 = max(2.0, nRays - 2.0);
+    float nRays3 = nRays + 2.0;
     float sharp = mix(2.2, 26.0, dAmt * 0.5);
     float shafts = pow(max(sin(angle * nRays + t * 0.05) * 0.5 + 0.5, 0.0), sharp);
     float shafts2 = 0.0;
     float shafts3 = 0.0;
     if (quality > 0.5)
-        shafts2 = pow(max(sin(angle * (nRays * 0.78) + 0.7 - t * 0.03) * 0.5 + 0.5, 0.0), sharp + 4.0);
+        shafts2 = pow(max(sin(angle * nRays2 + 0.7 - t * 0.03) * 0.5 + 0.5, 0.0), sharp + 4.0);
     if (quality > 2.5)
-        shafts3 = pow(max(sin(angle * (nRays * 1.31) + 1.4 + t * 0.04) * 0.5 + 0.5, 0.0), sharp + 8.0);
+        shafts3 = pow(max(sin(angle * nRays3 + 1.4 + t * 0.04) * 0.5 + 0.5, 0.0), sharp + 8.0);
     float rayFade = mix(0.35, 1.0, exp(-distScreen * mix(0.08, 0.55, dAmt * 0.5)));
     float rayAmt = mix(1.0, 0.40, n);
     float cone = pow(zRef / max(dist, 0.001), mix(0.15, 1.8, dAmt * 0.5));
-    shafts = shafts * mix(0.34, 0.10, dAmt * 0.5) * glowAmt * rayFade * rayAmt * cone;
-    shafts2 = shafts2 * mix(0.18, 0.05, dAmt * 0.5) * glowAmt * rayFade * rayAmt * cone;
-    shafts3 = shafts3 * mix(0.10, 0.03, dAmt * 0.5) * glowAmt * rayFade * rayAmt * cone;
+    float shaftMask = srcR < 0.001 ? 1.0 : smoothstep(srcR * 0.86, srcR * 1.14, radial);
+    shafts = shafts * mix(0.34, 0.10, dAmt * 0.5) * glowAmt * rayFade * rayAmt * cone * shaftMask;
+    shafts2 = shafts2 * mix(0.18, 0.05, dAmt * 0.5) * glowAmt * rayFade * rayAmt * cone * shaftMask;
+    shafts3 = shafts3 * mix(0.10, 0.03, dAmt * 0.5) * glowAmt * rayFade * rayAmt * cone * shaftMask;
 
     float motes = 0.0;
     int moteCount = quality < 0.5 ? 4 : quality < 1.5 ? 8 : quality < 2.5 ? 18 : 24;
@@ -117,5 +129,5 @@ void main() {
     alpha = clamp(alpha, 0.0, mix(0.72, 0.22, dAmt * 0.5) * mix(1.0, 0.72, n));
 
     fragColor = vec4(col * alpha, alpha) * qt_Opacity * clamp(strength, 0.0, 1.0);
-    fragColor.a += 0.0 * (sheen + lightning + scale + azimuth + sunDistance + nightTint + nightStrength);
+    fragColor.a += 0.0 * (sheen + azimuth + sunDistance + nightTint + nightStrength);
 }

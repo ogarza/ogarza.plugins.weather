@@ -59,11 +59,11 @@ Shader presets (`param rain density`, not the mix id):
 | `rain` | `density` (0–2.4), `speed`, `scale` (0–2), `glow` (sheen), `darken`, `refract` (0–1) |
 | `snow` | `density`, `speed`, `scale`, `glow` |
 | `fog` | `density`, `speed`, `scale` |
-| `sunny` | `glow`, `speed`, `density` (dust), `azimuth`, `distance` |
+| `sunny` | `glow`, `speed`, `density` (dust), `azimuth` (position), `lightning` (height; −2–2, 0 = just above the top), `scale` (source; 0 = point, up = sphere), `distance` |
 | `stormy` | `density` (0–2.4), `speed`, `scale` (0–2), `sheen`, `refract`, `lightning`, `frequency`, `glow` (gloom), `azimuth` |
 | `fire` | `density`, `speed`, `scale`, `glow` |
 | `motes` | `density`, `speed`, `scale` (size), `glow`, `lightning` (glow pulse), `azimuth` (hue 0–2), `frequency` (saturation) |
-| `mist` | `density`, `speed`, `scale`, `glow`, `azimuth` (hue) |
+| `mist` | `density`, `speed`, `scale`, `glow`, `sheen` (start; −2–2, 0 = floor), `lightning` (height; packs the bank), `azimuth` (hue) |
 | `stars` | `density` (0–2.4), `speed` (twinkle amount; 0 = off), `scale`, `glow`, `sheen` (parallax; 0 = still), `lightning` (shooting stars; 0 = none), `azimuth` (hue), `frequency` (saturation) |
 | `pollen` | `density`, `speed`, `scale`, `glow`, `sheen` (wind; 0 = up), `lightning` (tumble), `azimuth` (hue), `frequency` (saturation) |
 | `rainbow` | `glow`, `density`, `scale` (0–4), `azimuth`, `lightning` (−2–2 height), `distance`, `speed`, `nightVisible`, `nightTint`, `nightStrength` |
@@ -77,11 +77,11 @@ Factory defaults (stored numbers). Start from these or from the live value (`par
 | `rain` | strength 1, density 0.8, speed 1, **scale 1**, glow 0.6, darken 1, refract 1, enableC off, strengthC 0.65 |
 | `snow` | strength 1, density 0.8, speed 1, **scale 0.8**, glow 0.3, enableC off, strengthC 0.65 |
 | `fog` | strength 1, density 1, speed 0.9, **scale 1**, enableC off, strengthC 0.65 |
-| `sunny` | strength 1, glow 1, speed 1, density 1.2, azimuth 1.2, distance 1, enableC off, strengthC 0.65 |
+| `sunny` | strength 1, glow 1, speed 1, density 1.2, azimuth 1.2, lightning 0 (height), **scale 0** (point source), distance 1, enableC off, strengthC 0.65 |
 | `stormy` | strength 1, density 1, speed 1.15, **scale 1**, sheen 0.6, refract 1, lightning 1.5, frequency 1, glow 1, azimuth 1, enableC off, strengthC 0.65 |
 | `fire` | strength 1, density 1, speed 0.5, **scale 1**, glow 1, enableC off, strengthC 0.65 |
 | `motes` | strength 1, density 1, speed 0.7, **scale 1**, glow 1.1, lightning 1, azimuth 0.24, frequency 1.1, enableC off, strengthC 0.65 |
-| `mist` | strength 1, density 1.1, speed 0.55, **scale 1.15**, glow 0.85, azimuth 0.58, enableC off, strengthC 0.65 |
+| `mist` | strength 1, density 1.1, speed 0.55, **scale 1.15**, glow 0.85, sheen 0 (floor), lightning 1.5 (height), azimuth 0.58, enableC off, strengthC 0.65 |
 | `stars` | strength 1, density 1.7, speed 0.85, **scale 0.4**, glow 0.9, sheen 0.7, lightning 0.55, azimuth 0.58, frequency 0.2, enableC off, strengthC 0.65 |
 | `pollen` | strength 1, density 0.75, speed 0.5, **scale 1.1**, glow 0.45, sheen 0 (wind up), lightning 0.85, azimuth 0.14, frequency 0.55, enableC off, strengthC 0.65 |
 | `rainbow` | strength 1, glow 1, density 1, **scale 1**, azimuth 0.8, lightning 0.65, distance 1, speed 1, nightVisible off, nightTint 1, nightStrength 0.7 |
@@ -158,9 +158,10 @@ If fire is on A, use `strengthA`. Do not set `param fire strength` for this.
 
 - “Raining kind of hard” → raise `param rain density` from current/default 0.8 (e.g. 1.2–1.5). Leave scale at 1 unless they want bigger drops.
 - “Make it beautiful” on sun shower / rain / sunny → `param <condition> enableC on` (Add Rainbow). Do not max scale.
+- Rays from mid-screen → `param sunny lightning` around 1 (0 is just above the top). Horizontal is `param sunny azimuth`. Ball of light → raise `param sunny scale` from 0 (point) toward 1–2 (sphere).
 - Forest fireflies / fairy lights → `mode motes` then `power on`. More specks → `param motes density`. Color is `param motes azimuth` (hue) and `param motes frequency` (saturation). Size `scale`, halo `glow`, breathe `lightning`.
 - Night sparkle / stars → `mode stars` then `power on`. Still field → `param stars sheen 0`. No twinkle → `param stars speed 0`. Harder pulse → raise `param stars speed` (amount, not rate). No meteors → `param stars lightning 0`. `mode sparkle` is the same as Stars.
-- Ground mist / rolling fog → `mode mist` then `power on`. Not Cloud/Fog (`fog`).
+- Ground mist / rolling fog → `mode mist` then `power on`. Not Cloud/Fog (`fog`). Shorter denser bank → lower `param mist lightning`. Lift off the floor → raise `param mist sheen`. Heavier on the floor / below the bezel → negative `param mist sheen`.
 - Pollen / dandelion seeds → `mode pollen` then `power on`. Wind heading is `param pollen sheen` (0 = up). Spin is `param pollen lightning`. There is no `detail pollen` — Effect detail does not apply.
 - Bigger flakes/drops → `param snow scale` or `param rain scale` (rain max 2; default 1).
 - Rainbow on Sun shower → `param sunshower enableC on`. Follow: same, do not switch mode.

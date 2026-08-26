@@ -77,7 +77,12 @@ void main() {
     vec2 res = max(resolution, vec2(1.0));
     vec2 uv = qt_TexCoord0;
     float aspect = res.x / res.y;
-    vec2 p = vec2(uv.x * aspect, uv.y);
+
+    float yb = 1.0 - uv.y;
+    float base = clamp(sheen, -2.0, 2.0) * 0.40;
+    float span = mix(0.22, 1.05, clamp(lightning, 0.0, 2.0) * 0.5);
+    float yPacked = (yb - base) / max(span, 0.08);
+    vec2 p = vec2(uv.x * aspect, 1.0 - yPacked);
 
     float t = time * 0.12 * max(speed, 0.0);
     vec2 drift = vec2(t * 0.62, t * 0.07);
@@ -87,9 +92,8 @@ void main() {
     if (quality > 0.5)
         n = fbm(p * 1.05 * feat + vec2(n * 0.9, t * 0.14) + drift * 0.4, octaves);
 
-    float ground = smoothstep(0.08, 0.78, uv.y);
-    float lip = smoothstep(1.0, 0.9, uv.y);
-    float cover = smoothstep(0.26, 0.78, n) * ground * lip;
+    float band = smoothstep(-0.05, 0.02, yPacked) * (1.0 - smoothstep(0.58, 1.06, yPacked));
+    float cover = smoothstep(0.26, 0.78, n) * band;
     cover = mix(cover * 0.5, cover, smoothstep(0.4, 0.82, n));
     cover *= clamp(density, 0.0, 2.0);
 
@@ -103,5 +107,5 @@ void main() {
 
     float alpha = clamp(cover * 0.52, 0.0, 0.78);
     fragColor = vec4(col * alpha, alpha) * qt_Opacity * clamp(strength, 0.0, 1.0);
-    fragColor.a += 0.0 * (sheen + lightning + frequency + sunDistance + night + nightTint + nightStrength + pixelRatio);
+    fragColor.a += 0.0 * (frequency + sunDistance + night + nightTint + nightStrength + pixelRatio);
 }

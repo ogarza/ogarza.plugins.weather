@@ -2,7 +2,7 @@
 
 Fullscreen weather on your Omarchy desktop: rain on glass, snow, clouds, sun, storms, fire, motes, mist, stars, pollen, rainbows, and mixes. Most of it is a transparent overlay. Rain refraction goes through Hyprland (or the wallpaper warp) so drops warp the real desktop, not a painted copy.
 
-Plugin id: `ogarza.plugins.weather` · version **1.9.1**
+Plugin id: `ogarza.plugins.weather` · version **1.9.2**
 
 ## Install
 
@@ -97,7 +97,7 @@ Mode changes in the panel fade over about two seconds. Follow fades forecast cha
 | Rain | Glass beads and trails. Hyprland **Refract** warps the desktop (painted rain is skipped while that is live). Refract 0 is painted only. |
 | Snow | Falling flakes (overlay only; lower Effect detail uses fewer layers) |
 | Cloud/Fog | Soft clouds, denser high up; top and bottom faded so the desktop stays readable |
-| Sunny | Warm glow by day. Over civil twilight (sun 0° to −6°, a few minutes) it eases to cool moonlight |
+| Sunny | Warm glow by day. **Position** and **Height** place the light (Height 0 is just above the top). **Source** 0 is a point; raise it for a sphere. Over civil twilight (sun 0° to −6°, a few minutes) it eases to cool moonlight |
 | Partly cloudy | Clouds and sun (sun→moonlight like Sunny). Follow becomes Moonlit clouds after sunset |
 | Overcast | Heavy clouds, faint sun (same twilight rules as Sunny) |
 | Sun shower | Sun and rain. Optional rainbow fades at night unless **After sunset** is on |
@@ -110,7 +110,7 @@ Mode changes in the panel fade over about two seconds. Follow fades forecast cha
 | Exclusive | Same fetch as Follow; overlay only when weather matches **Track only**. The panel previews until you close it |
 | Fire | Ground fire (manual only) |
 | Motes | Floating glowing specks (manual only). Overlay only. **Hue**, **Saturation**, **Size**, **Glow**, **Glow pulse** |
-| Mist | Ground-hugging rolling haze (manual only). Overlay only. Opposite of Cloud/Fog. **Hue** tints the mist |
+| Mist | Ground-hugging rolling haze (manual only). Overlay only. Opposite of Cloud/Fog. **Start** (−2–2) lifts the bank or sits it lower; **Height** packs the haze (low is denser, not a thin line). **Hue** tints the mist |
 | Stars | Twinkling starfield (manual only). Overlay only. Three slow **Parallax** layers (0 is still). **Twinkle amount** is pulse depth (0 off). **Shooting stars** are rare and brief (0 off); each pass picks a heading and near/far size. **Hue**, **Saturation**, **Size**, **Glow** |
 | Pollen | Dandelion-like seeds that lift and sway (manual only). Overlay only. **Wind** (0 = up), **Tumble**, **Hue**, **Saturation**, **Size**, **Glow** |
 | Rainbow | Primary and secondary bows (manual only). Hidden after sunset unless **After sunset** is on (**Night glow** / **Night strength**) |
@@ -138,6 +138,8 @@ Columns to the right of the mode list show a short description and the sliders f
 - **Parallax** — Stars only: slow drift between near/mid/far layers (0 is still)
 - **Shooting stars** — Stars only: how often a brief meteor appears (0 is none). Each one gets a random heading and near/far scale
 - **Wind** — Pollen heading (0 = up, then around the compass)
+- **Start** — Mist only: how high the bank sits (0 is on the floor; negative hangs lower / off the bottom)
+- **Height** — Mist only: packs the bank into less vertical space (rainbow Height is bow placement)
 - **Tumble** — Pollen seed spin
 - **Darken** — how much raindrops tint the glass.
 - **Refract** — warp the real desktop through rain or storm drops. Default 100%. 0 keeps the painted overlay
@@ -147,7 +149,7 @@ Columns to the right of the mode list show a short description and the sliders f
 - **Hue** / **Saturation** — mote, star, pollen, and mist color (Hue walks the wheel; Saturation 0 is near-white; mist has Hue only)
 - **Vividness** — rainbow bands
 - **Dust** — motes in sunny / moonlight
-- **Position** / **Distance** — sun and moon placement
+- **Position** / **Height** / **Source** / **Distance** — sun and moon placement (Height 0 is just above the top; Source 0 is a point, higher is a sphere the shafts leave from)
 - **Horizontal** / **Height** / **Distance** — rainbow placement
 - **Shimmer** — rainbow motion
 - **After sunset** — keep the rainbow at night (off by default). **Night glow** cools the bands toward ice-blue; **Night strength** is how visible the bow stays

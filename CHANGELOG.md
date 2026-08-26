@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.9.2
+
+- Mist **Start** (`sheen`, −2–2, 0 = on the floor; negative sits the bank lower) and **Height** (`lightning`) pack the haze (low Height is a dense slab, not a faded line).
+- Sunny / Moon **Height** (`lightning`, −2–2, default 0) moves the ray origin; 0 is just above the top of the screen. Shafts use whole-number lobes so they wrap with no left-side `atan` seam. **Source** (`scale`, default 0) is a point; raise it for a sphere the beams leave from.
+
 ## 1.9.1
 
 - Custom layers are **dropdowns** (A / B / C) instead of three full stacked lists, so the panel stays shorter.
